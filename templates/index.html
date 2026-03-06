@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Port Scanner · AI Analýza</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #238636;
+      --accent-hover: #2ea043;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --open: #3fb950;
+      --warn: #f85149;
+      --info: #58a6ff;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    header h1 { font-size: 1.8rem; letter-spacing: 1px; }
+    header p  { color: var(--muted); margin-top: 0.4rem; font-size: 0.9rem; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      max-width: 860px;
+      margin: 0 auto 1.5rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
+
+    input, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.95rem;
+    }
+    input:focus, select:focus { outline: 2px solid var(--info); border-color: var(--info); }
+
+    .full { grid-column: 1 / -1; }
+
+    button#btnScan {
+      margin-top: 1rem;
+      width: 100%;
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 1rem;
+      padding: 0.7rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button#btnScan:hover:not(:disabled)  { background: var(--accent-hover); }
+    button#btnScan:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Progress */
+    #progressWrap { display: none; margin-top: 1rem; }
+    #progressBar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    #progressFill {
+      height: 100%;
+      background: var(--info);
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #progressLabel { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
+
+    /* Port table */
+    #portsWrap { display: none; }
+    #portCount { font-weight: 600; margin-bottom: 0.8rem; color: var(--open); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; color: var(--muted); font-weight: 500; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
+    td { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    .badge-open { color: var(--open); font-weight: 600; }
+    .port-num { font-family: monospace; }
+    .banner-cell { color: var(--muted); font-size: 0.8rem; font-family: monospace; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* AI sekcia */
+    #aiWrap { display: none; }
+    #aiWrap h2 { font-size: 1rem; color: var(--info); margin-bottom: 1rem; }
+    #aiOutput {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      font-size: 0.92rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      min-height: 100px;
+    }
+
+    /* Markdown-like styles inside aiOutput */
+    #aiOutput strong { color: var(--info); }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--info);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #statusMsg { color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔍 Port Scanner</h1>
+  <p>Skenuje porty a AI (Claude Opus 4.6) analyzuje bezpečnostné riziká</p>
+</header>
+
+<!-- Formulár -->
+<div class="card">
+  <div class="form-grid">
+    <div class="full">
+      <label>Cieľový hostiteľ (IP alebo hostname)</label>
+      <input id="host" type="text" placeholder="napr. 192.168.1.1 alebo example.com" />
+    </div>
+    <div>
+      <label>Profil portov</label>
+      <select id="ports">
+        {% for p in profily %}
+        <option value="{{ p }}" {% if p == 'top100' %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+        <option value="custom">Vlastný rozsah...</option>
+      </select>
+    </div>
+    <div id="customWrap" style="display:none;">
+      <label>Vlastné porty (napr. 22,80,443 alebo 1-1024)</label>
+      <input id="customPorts" type="text" placeholder="22,80,443,8080" />
+    </div>
+    <div>
+      <label>Vlákna (rýchlosť skenu)</label>
+      <input id="threads" type="number" value="100" min="10" max="500" />
+    </div>
+  </div>
+
+  <div id="progressWrap">
+    <div id="progressBar"><div id="progressFill"></div></div>
+    <div id="progressLabel">0 / 0</div>
+  </div>
+
+  <div id="statusMsg"></div>
+  <button id="btnScan" onclick="startScan()">▶ Spustiť sken</button>
+</div>
+
+<!-- Výsledky portov -->
+<div class="card" id="portsWrap">
+  <div id="portCount"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Port</th>
+        <th>Stav</th>
+        <th>Služba</th>
+        <th>Banner</th>
+      </tr>
+    </thead>
+    <tbody id="portBody"></tbody>
+  </table>
+</div>
+
+<!-- AI Analýza -->
+<div class="card" id="aiWrap">
+  <h2><span id="aiSpinner" class="spinner"></span>AI Bezpečnostná Analýza</h2>
+  <div id="aiOutput"></div>
+</div>
+
+<script>
+  const portsSelect = document.getElementById('ports');
+  const customWrap  = document.getElementById('customWrap');
+
+  portsSelect.addEventListener('change', () => {
+    customWrap.style.display = portsSelect.value === 'custom' ? 'block' : 'none';
+  });
+
+  let evtSource = null;
+
+  function setStatus(msg) {
+    document.getElementById('statusMsg').textContent = msg;
+  }
+
+  function startScan() {
+    const host = document.getElementById('host').value.trim();
+    if (!host) { alert('Zadajte cieľový hostiteľ.'); return; }
+
+    let ports = portsSelect.value;
+    if (ports === 'custom') {
+      ports = document.getElementById('customPorts').value.trim();
+      if (!ports) { alert('Zadajte vlastné porty.'); return; }
+    }
+
+    const threads = document.getElementById('threads').value;
+
+    // Reset UI
+    document.getElementById('portBody').innerHTML = '';
+    document.getElementById('aiOutput').textContent = '';
+    document.getElementById('portsWrap').style.display = 'none';
+    document.getElementById('aiWrap').style.display = 'none';
+    document.getElementById('progressWrap').style.display = 'block';
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('progressLabel').textContent = 'Spúšťam...';
+    document.getElementById('btnScan').disabled = true;
+    document.getElementById('aiSpinner').style.display = 'inline-block';
+
+    if (evtSource) evtSource.close();
+
+    const url = `/scan?host=${encodeURIComponent(host)}&ports=${encodeURIComponent(ports)}&threads=${threads}`;
+    evtSource = new EventSource(url);
+
+    evtSource.addEventListener('status', e => {
+      const d = JSON.parse(e.data);
+      setStatus(d.message);
+    });
+
+    evtSource.addEventListener('progress', e => {
+      const d = JSON.parse(e.data);
+      const pct = Math.round(d.done / d.total * 100);
+      document.getElementById('progressFill').style.width = pct + '%';
+      document.getElementById('progressLabel').textContent = `${d.done} / ${d.total} portov (${pct}%)`;
+    });
+
+    evtSource.addEventListener('port', e => {
+      const d = JSON.parse(e.data);
+      document.getElementById('portsWrap').style.display = 'block';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="port-num">${d.port}</td>
+        <td><span class="badge-open">● OPEN</span></td>
+        <td>${d.sluzba}</td>
+        <td class="banner-cell" title="${d.banner || ''}">${d.banner || '—'}</td>
+      `;
+      document.getElementById('portBody').appendChild(tr);
+    });
+
+    evtSource.addEventListener('scan_done', e => {
+      const d = JSON.parse(e.data);
+      document.getElementById('portCount').textContent =
+        `Nájdených otvorených portov: ${d.open_count} z ${d.total}`;
+      setStatus('Sken dokončený. Spúšťam AI analýzu...');
+      document.getElementById('aiWrap').style.display = 'block';
+    });
+
+    evtSource.addEventListener('ai_start', e => {
+      setStatus('Claude analyzuje...');
+    });
+
+    evtSource.addEventListener('ai_chunk', e => {
+      const d = JSON.parse(e.data);
+      const out = document.getElementById('aiOutput');
+      out.textContent += d.text;
+      out.scrollTop = out.scrollHeight;
+    });
+
+    evtSource.addEventListener('done', e => {
+      evtSource.close();
+      document.getElementById('btnScan').disabled = false;
+      document.getElementById('aiSpinner').style.display = 'none';
+      setStatus('Hotovo ✓');
+    });
+
+    evtSource.addEventListener('error', e => {
+      try {
+        const d = JSON.parse(e.data);
+        setStatus('Chyba: ' + d.message);
+      } catch {
+        setStatus('Spojenie prerušené.');
+      }
+      evtSource.close();
+      document.getElementById('btnScan').disabled = false;
+      document.getElementById('aiSpinner').style.display = 'none';
+    });
+
+    evtSource.onerror = () => {
+      // SSE sa uzavrel (normálne po done)
+      evtSource.close();
+      document.getElementById('btnScan').disabled = false;
+      document.getElementById('aiSpinner').style.display = 'none';
+    };
+  }
+
+  // Enter key
+  document.getElementById('host').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startScan();
+  });
+</script>
+
+</body>
+</html>
