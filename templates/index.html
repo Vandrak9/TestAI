@@ -143,6 +143,14 @@
 <body>
 
 <header>
+  <div style="display:flex;justify-content:flex-end;max-width:860px;margin:0 auto 0.5rem;">
+    <span style="color:var(--muted);font-size:0.85rem;align-self:center;margin-right:1rem;">
+      👤 {{ username }}
+    </span>
+    <a href="/logout" style="color:var(--muted);font-size:0.85rem;text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.8rem;">
+      Odhlásiť
+    </a>
+  </div>
   <h1>🔍 Port Scanner</h1>
   <p>Skenuje porty a AI (Claude Opus 4.6) analyzuje bezpečnostné riziká</p>
 </header>
