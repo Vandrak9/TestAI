@@ -7,13 +7,15 @@ Spustenie: python app.py
 import json
 import socket
 import hashlib
+import hmac
 import os
 import secrets
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import wraps
 from flask import (
     Flask, render_template, request, Response,
-    stream_with_context, session, redirect, url_for, flash,
+    stream_with_context, session, redirect, url_for, flash, jsonify,
 )
 import anthropic
 
@@ -197,6 +199,40 @@ def scan():
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Webhook (automatické nasadenie) ───────────────────────────────────────────
+
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
+DEPLOY_SCRIPT = os.path.join(os.path.dirname(__file__), "deploy.sh")
+
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    """Prijíma POST od GitHub/Gitea a spúšťa deploy.sh."""
+    if not WEBHOOK_SECRET:
+        return jsonify({"error": "WEBHOOK_SECRET nie je nastavený"}), 500
+
+    # Overenie podpisu
+    signature = request.headers.get("X-Hub-Signature-256", "")
+    body = request.get_data()
+    expected = "sha256=" + hmac.new(
+        WEBHOOK_SECRET.encode(), body, "sha256"
+    ).hexdigest()
+
+    if not hmac.compare_digest(signature, expected):
+        return jsonify({"error": "Neplatný podpis"}), 403
+
+    # Spustenie deploy skriptu na pozadí
+    try:
+        subprocess.Popen(
+            ["bash", DEPLOY_SCRIPT],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return jsonify({"status": "nasadenie spustené"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
