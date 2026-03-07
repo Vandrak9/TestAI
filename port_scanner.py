@@ -88,6 +88,11 @@ PREDEFINED_PROFILES = {
 }
 
 
+# Porty kde server posiela banner ako prvý (bez HTTP probe)
+_BANNER_FIRST_PORTS = {21, 22, 23, 25, 110, 143, 465, 587, 993, 995, 2222}
+# Porty kde treba SSL
+_SSL_PORTS = {443, 8443, 9443}
+
 def scan_port(host: str, port: int, timeout: float = 1.0) -> dict:
     """Pokúsi sa pripojiť na port a vráti výsledok."""
     try:
@@ -96,12 +101,25 @@ def scan_port(host: str, port: int, timeout: float = 1.0) -> dict:
             result = s.connect_ex((host, port))
             if result == 0:
                 service = COMMON_SERVICES.get(port, "Neznáma")
-                # Pokus o získanie banneru
                 banner = ""
                 try:
-                    s.send(b"HEAD / HTTP/1.0\r\n\r\n")
-                    banner = s.recv(256).decode("utf-8", errors="ignore").strip()
-                    banner = banner[:100]
+                    if port in _BANNER_FIRST_PORTS:
+                        # Server posiela banner ako prvý — len čítame, nič neposielame
+                        banner = s.recv(256).decode("utf-8", errors="ignore").strip()
+                    elif port in _SSL_PORTS:
+                        # HTTPS porty — HTTP probe cez SSL
+                        import ssl
+                        ctx = ssl.create_default_context()
+                        ctx.check_hostname = False
+                        ctx.verify_mode = ssl.CERT_NONE
+                        with ctx.wrap_socket(s, server_hostname=host) as ss:
+                            ss.send(b"HEAD / HTTP/1.0\r\nHost: " + host.encode() + b"\r\n\r\n")
+                            banner = ss.recv(256).decode("utf-8", errors="ignore").strip()
+                    else:
+                        # Štandardné HTTP porty
+                        s.send(b"HEAD / HTTP/1.0\r\n\r\n")
+                        banner = s.recv(256).decode("utf-8", errors="ignore").strip()
+                    banner = banner.split("\n")[0][:120]
                 except Exception:
                     pass
                 return {"port": port, "stav": "otvorený", "sluzba": service, "banner": banner}

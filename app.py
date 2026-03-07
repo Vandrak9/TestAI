@@ -1151,8 +1151,14 @@ def analyze(scan_id):
         prompt = (
             f"Port sken: {scan['host']} ({scan['ip']})\n"
             f"Otvorené porty:\n{port_list}\n\n"
+            "Kontext pre správnu interpretáciu (eliminuj false positives):\n"
+            "- Port 80 presmerúvajúci na 443 BEZ HSTS hlavičky je SPRÁVNE správanie — HSTS patrí len na HTTPS\n"
+            "- Port 443 vracajúci HTTP 400 Bad Request je NORMÁLNE — nginx odmietne plain HTTP na HTTPS porte\n"
+            "- SSH banner 'invalid format' v logoch môže byť spôsobený port skenerom samotným — nie je to útok\n"
+            "- Port 5000 (Flask/Werkzeug) je problém LEN ak je verejne dostupný; ak je za nginx reverse proxy, nie je to riziko\n"
+            "- Viditeľná verzia nginx/OpenSSH je nízke riziko, nie kritické\n\n"
             "Stručná bezpečnostná analýza v slovenčine (max 250 slov):\n"
-            "1. **Kritické riziká** – len najdôležitejšie hrozby pre tieto porty\n"
+            "1. **Kritické riziká** – len skutočné, overiteľné hrozby (nie false positives)\n"
             "2. **Top 3 odporúčania** – konkrétne kroky\n"
             "3. **Celkové riziko**: Nízke / Stredné / Vysoké / Kritické"
         )
