@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.3] – 2026-03-07
+### Opravené
+- **Flask**: `host` zmenený z `0.0.0.0` na `127.0.0.1` — port 5000 nie je verejne dostupný
+- **nginx**: `server_tokens off` — hlavička vracia len `nginx` bez verzie
+
 ## [0.4.2] – 2026-03-07
 ### Opravené
 - **SSH banner grab**: port 22 teraz číta banner bez HTTP probe → eliminovaný "invalid format" v sshd logoch
