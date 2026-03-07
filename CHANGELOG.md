@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.5] – 2026-03-07
+### Opravené
+- **HTTP check false positive**: pri skenovaní IP adresy sa skúsi PTR (reverse DNS) záznam
+- Nájdený hostname sa použije pre TLS SNI → nginx vráti správny certifikát a bezpečnostné hlavičky
+- Eliminovaná chyba "IP address mismatch, certificate is not valid" pri skenovaní vlastnej VPS
+
 ## [0.4.4] – 2026-03-07
 ### Bezpečnosť
 - **CSP** (`Content-Security-Policy`): `default-src 'self'` — blokuje načítanie externých skriptov a zdrojov
