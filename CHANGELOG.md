@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.6] – 2026-03-07
+### Opravené
+- **HTTP port 80 redirect**: custom SSL opener pre urllib → žiadna chyba pri sledovaní 301→HTTPS
+- **AI prompt**: zahŕňa overené výsledky HTTP security skenu — AI neodporúča hlavičky ktoré sú už prítomné
+- AI pokyn: ak nález je `[OK]`, neodporúčať danú vec ako chýbajúcu
+
 ## [0.4.5] – 2026-03-07
 ### Opravené
 - **HTTP check false positive**: pri skenovaní IP adresy sa skúsi PTR (reverse DNS) záznam
