@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.7] – 2026-03-07
+### Opravené
+- **HTTP redirect detekcia**: urllib viac nenasleduje redirecty automaticky
+- 301/302 odpovede sú čítané priamo → správna detekcia `Location: https://` hlavičky
+- Eliminuje false positive "Chýba HTTP→HTTPS redirect"
+
 ## [0.4.6] – 2026-03-07
 ### Opravené
 - **HTTP port 80 redirect**: custom SSL opener pre urllib → žiadna chyba pri sledovaní 301→HTTPS
