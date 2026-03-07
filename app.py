@@ -605,28 +605,30 @@ def check_http_security(host: str, port: int) -> dict:
                 findings.append({"severity": "low", "title": "Server verzia v hlavičke",
                     "detail": f"Server: {srv} — prezrádza verziu softvéru"})
 
-        # Security headers
-        for hdr, (name, sev, msg) in _SEC_HEADERS.items():
-            if hdr in resp_headers:
-                val = resp_headers[hdr]
-                # HSTS — skontroluj max-age
-                if hdr == "strict-transport-security":
-                    try:
-                        ma = int(next(p.split("=")[1] for p in val.split(";")
-                                      if "max-age" in p.lower()))
-                        if ma < 15768000:  # < 6 mesiacov
-                            findings.append({"severity": "medium",
-                                "title": "HSTS max-age je krátky",
-                                "detail": f"max-age={ma}s — odporúča sa min. 15768000 (6 mesiacov)"})
-                        else:
-                            findings.append({"severity": "ok", "title": "HSTS nastavený správne",
-                                "detail": f"max-age={ma}s"})
-                    except Exception:
-                        findings.append({"severity": "ok", "title": "HSTS prítomný", "detail": val})
-            else:
-                if hdr == "strict-transport-security" and not use_tls:
-                    continue  # HSTS nemá zmysel na HTTP
-                findings.append({"severity": sev, "title": f"Chýba {name}", "detail": msg})
+        # Security headers — kontrolujeme len na HTTPS
+        # Na HTTP porte (redirect) sú hlavičky zámerne vynechané serverom
+        if not use_tls:
+            pass  # preskočíme — hlavičky patria na HTTPS odpoveď
+        else:
+            for hdr, (name, sev, msg) in _SEC_HEADERS.items():
+                if hdr in resp_headers:
+                    val = resp_headers[hdr]
+                    # HSTS — skontroluj max-age
+                    if hdr == "strict-transport-security":
+                        try:
+                            ma = int(next(p.split("=")[1] for p in val.split(";")
+                                          if "max-age" in p.lower()))
+                            if ma < 15768000:
+                                findings.append({"severity": "medium",
+                                    "title": "HSTS max-age je krátky",
+                                    "detail": f"max-age={ma}s — odporúča sa min. 15768000 (6 mesiacov)"})
+                            else:
+                                findings.append({"severity": "ok", "title": "HSTS nastavený správne",
+                                    "detail": f"max-age={ma}s"})
+                        except Exception:
+                            findings.append({"severity": "ok", "title": "HSTS prítomný", "detail": val})
+                else:
+                    findings.append({"severity": sev, "title": f"Chýba {name}", "detail": msg})
 
         # HTTP na HTTPS redirect
         if not use_tls:
