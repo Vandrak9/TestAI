@@ -1093,7 +1093,20 @@ def http_check(scan_id):
         return jsonify({"error": "Sken nenájdený"}), 404
 
     open_ports = json.loads(row["open_ports"] or "[]")
-    host = row["ip"] or row["host"]
+    raw_host = row["host"]
+    raw_ip   = row["ip"] or raw_host
+
+    # Ak používateľ zadal IP priamo, skús reverse DNS pre hostname
+    # — bez hostname nginx nevráti správny certifikát (chýba SNI)
+    try:
+        ipaddress.ip_address(raw_host)   # vyhodí ValueError ak je to hostname
+        try:
+            host = socket.gethostbyaddr(raw_ip)[0]
+        except Exception:
+            host = raw_ip   # PTR nenájdený — zostaneme pri IP
+    except ValueError:
+        host = raw_host     # Používateľ zadal hostname — použijeme priamo
+
     web_port_nums = {80, 443, 8080, 8443, 3000, 8888, 9090, 5000, 9443}
     web_ports = sorted(
         p["port"] for p in open_ports if p["port"] in web_port_nums
