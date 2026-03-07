@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.4] – 2026-03-07
+### Bezpečnosť
+- **CSP** (`Content-Security-Policy`): `default-src 'self'` — blokuje načítanie externých skriptov a zdrojov
+- **Permissions-Policy**: zakázaná kamera, mikrofón, geolokácia pre prehliadač
+- `frame-ancestors 'self'`, `base-uri 'self'`, `form-action 'self'` — ochrana proti clickjacking a form hijacking
+
 ## [0.4.3] – 2026-03-07
 ### Opravené
 - **Flask**: `host` zmenený z `0.0.0.0` na `127.0.0.1` — port 5000 nie je verejne dostupný
