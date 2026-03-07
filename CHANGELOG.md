@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.9] – 2026-03-07
+### Opravené
+- **HTTP/HTTPS rozdielna stratégia redirectov**:
+  - HTTP port (80): nenasleduje redirecty + posiela `Host` hlavičku → správna detekcia `Location`
+  - HTTPS port (443): nasleduje redirecty → čítame finálne hlavičky (HSTS, CSP...)
+- Eliminuje false positive "Chýba HSTS" pri skenovaní google.sk a iných CDN/proxy serverov
+- Eliminuje false positive "Chýba redirect" pre servery vyžadujúce Host hlavičku
+
 ## [0.4.8] – 2026-03-07
 ### Opravené
 - Bezpečnostné hlavičky (CSP, X-Frame-Options, HSTS...) sa kontrolujú **len na HTTPS** porte
