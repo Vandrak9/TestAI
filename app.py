@@ -1575,4 +1575,4 @@ if __name__ == "__main__":
     debug = os.environ.get("DEBUG", "false").lower() == "true"
     print(f"[*] Spúšťam web server na http://0.0.0.0:{port}")
     print(f"[*] Prihlásenie: spravuj používateľov na /admin/users")
-    app.run(host="0.0.0.0", port=port, debug=debug, threaded=True)
+    app.run(host="127.0.0.1", port=port, debug=debug, threaded=True)
