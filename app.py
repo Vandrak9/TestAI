@@ -27,6 +27,8 @@ from flask import (
     Flask, render_template, request, Response,
     stream_with_context, session, redirect, url_for, flash, jsonify,
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import anthropic
 
 from port_scanner import PREDEFINED_PROFILES, scan_port
@@ -49,6 +51,15 @@ _UDP_DEFAULT_PORTS = sorted(_UDP_SERVICES.keys())
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+
+# Nginx posiela skutočnú IP cez X-Forwarded-For
+app.config["RATELIMIT_HEADERS_ENABLED"] = True
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://",
+)
 
 # ── História skenov (SQLite) ───────────────────────────────────────────────────
 
@@ -759,6 +770,7 @@ def admin_required(f):
 # ── Auth routes ────────────────────────────────────────────────────────────────
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute; 30 per hour", methods=["POST"])
 def login():
     if session.get("logged_in"):
         return redirect(url_for("index"))
@@ -1038,6 +1050,7 @@ def index():
 
 @app.route("/scan")
 @login_required
+@limiter.limit("20 per minute; 200 per hour")
 def scan():
     host = request.args.get("host", "").strip()
     port_arg = request.args.get("ports", "top100").strip()
@@ -1324,6 +1337,7 @@ def ssl_cert_info(host: str, port: int = 443) -> dict:
 
 @app.route("/api/rekon/<path:target>")
 @login_required
+@limiter.limit("30 per minute")
 def rekon_api(target):
     """Ping + DNS záznamy + SSL certifikát pre doménu alebo IP."""
     target = target.strip()
@@ -1360,6 +1374,7 @@ def geowhois_api(target):
 
 @app.route("/scan-udp")
 @login_required
+@limiter.limit("20 per minute; 200 per hour")
 def scan_udp_route():
     """SSE: UDP sken pre zadaný host."""
     host = request.args.get("host", "").strip()
@@ -1430,6 +1445,7 @@ def compare_scans():
 
 @app.route("/scan-range")
 @login_required
+@limiter.limit("10 per minute; 100 per hour")
 def scan_range():
     host_arg = request.args.get("host", "").strip()
     port_arg = request.args.get("ports", "top100").strip()
