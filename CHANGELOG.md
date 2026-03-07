@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.3.1] – 2026-03-07
+### Opravené
+- Tab "Rekon" premenovaný na **"DNS & Ping"** – zrozumiteľnejší názov
+- Tabs menu: horizontálny scroll na mobile (`overflow-x:auto`, `white-space:nowrap`) – všetky záložky dostupné
+
+## [0.3.0] – 2026-03-07
+### Pridané
+- Nový tab **DNS & Ping** pre prieskum hostiteľa
+- **ICMP Ping** – latencia min/avg/max, strata paketov (%), TTL (4 pakety)
+- **DNS záznamy** – A, AAAA, CNAME, MX, NS, TXT, SOA, PTR (knižnica `dnspython`)
+- **SSL/TLS certifikát** – CN, vydavateľ, platnosť + zostatok dní, SAN, protokol, šifra
+- API endpoint `GET /api/rekon/<target>` – 3 paralelné volania cez `ThreadPoolExecutor`
+- Tab sa predvyplní hostom zo skenera pri prepnutí
+
+## [0.2.1] – 2026-03-07
+### Pridané
+- **Správa používateľov** – SQLite tabuľka `users` (username, password_hash, role, active)
+- Login migrovaný z env premenných na DB autentifikáciu
+- Roly `admin` / `user`; dekorátory `@login_required`, `@admin_required`
+- Admin UI `/admin/users` – pridanie, zmazanie, aktivácia/deaktivácia, zmena hesla
+- Modal dialóg na zmenu hesla v admin UI
+- Vlastná zmena hesla pre prihláseného používateľa (`POST /profile/password`)
+- Nav: odkaz "Používatelia" viditeľný len pre admina + flash správy v UI
+- UDP výsledky ukladané do DB cez `scan_id`
+
 ## [0.2.0] – 2026-03-07
 
 ### Pridané
