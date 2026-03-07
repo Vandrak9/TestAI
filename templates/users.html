@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Správa používateľov · Port Scanner</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#080d18;--bg2:#0e1524;--surface:#111827;--card:#131e30;
+      --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.14);
+      --accent:#3b82f6;--accent2:#2563eb;--green:#10b981;--red:#ef4444;
+      --yellow:#f59e0b;--text:#e8f0fe;--muted:#64748b;--muted2:#94a3b8;
+      --radius:12px;--rsm:8px;
+    }
+    body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;min-height:100vh;line-height:1.6}
+
+    nav{position:sticky;top:0;z-index:100;background:rgba(8,13,24,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:.7rem 1.25rem}
+    .nav-brand{font-weight:700;font-size:.97rem;display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--text)}
+    .nav-brand svg{width:18px;height:18px;color:var(--accent)}
+    .nav-right{display:flex;align-items:center;gap:.75rem}
+    .nav-user{color:var(--muted2);font-size:.8rem;display:flex;align-items:center;gap:.35rem}
+    .nav-user svg{width:14px;height:14px}
+    .btn-logout{font-size:.78rem;color:var(--muted2);border:1px solid var(--border2);border-radius:6px;padding:.28rem .7rem;text-decoration:none;transition:all .15s}
+    .btn-logout:hover{color:var(--text);border-color:var(--muted2)}
+
+    .wrap{max-width:860px;margin:0 auto;padding:1.5rem 1rem 5rem}
+
+    h1{font-size:1.15rem;font-weight:700;margin-bottom:.25rem}
+    .sub{color:var(--muted2);font-size:.83rem;margin-bottom:1.5rem}
+
+    /* Flash správy */
+    .flash{border-radius:var(--rsm);padding:.6rem .95rem;font-size:.84rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+    .flash.ok{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#34d399}
+    .flash.error{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#f87171}
+    .flash svg{width:14px;height:14px;flex-shrink:0}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.15rem;margin-bottom:1rem}
+    .card-title{font-size:.75rem;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.85rem}
+
+    /* Tabuľka */
+    .tbl-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.875rem}
+    thead th{text-align:left;color:var(--muted2);font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.7px;padding:.45rem .7rem;border-bottom:1px solid var(--border2)}
+    tbody tr{border-bottom:1px solid var(--border)}
+    tbody tr:last-child{border-bottom:none}
+    tbody td{padding:.55rem .7rem;vertical-align:middle}
+
+    .badge{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;padding:.15rem .55rem;border-radius:99px}
+    .badge-admin{background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.3)}
+    .badge-user{background:rgba(100,116,139,.12);color:var(--muted2);border:1px solid var(--border2)}
+    .badge-active{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.25)}
+    .badge-inactive{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+
+    .actions{display:flex;gap:.4rem;flex-wrap:wrap}
+    .btn{font-size:.75rem;font-weight:500;padding:.28rem .65rem;border-radius:6px;border:1px solid var(--border2);cursor:pointer;background:transparent;color:var(--muted2);transition:all .15s;white-space:nowrap}
+    .btn:hover{color:var(--text);border-color:var(--muted2)}
+    .btn-red{border-color:rgba(239,68,68,.35);color:#f87171}
+    .btn-red:hover{background:rgba(239,68,68,.1);border-color:var(--red)}
+    .btn-green{border-color:rgba(16,185,129,.35);color:#34d399}
+    .btn-green:hover{background:rgba(16,185,129,.1);border-color:var(--green)}
+
+    /* Formulár pridania */
+    .fgrid{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.65rem;align-items:end}
+    @media(max-width:640px){.fgrid{grid-template-columns:1fr 1fr}}
+    label{display:block;font-size:.76rem;color:var(--muted2);font-weight:500;margin-bottom:.28rem}
+    input,select{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);padding:.5rem .72rem;font-size:.88rem;transition:border-color .15s,box-shadow .15s}
+    input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+    select option{background:var(--surface)}
+    input::placeholder{color:var(--muted)}
+
+    .btn-primary{background:var(--accent);border:none;border-radius:var(--rsm);color:#fff;font-size:.88rem;font-weight:600;padding:.52rem 1.1rem;cursor:pointer;transition:background .15s;white-space:nowrap}
+    .btn-primary:hover{background:var(--accent2)}
+
+    /* Modal na zmenu hesla */
+    .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center}
+    .modal-bg.open{display:flex}
+    .modal{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:1.5rem;width:100%;max-width:340px;box-shadow:0 25px 50px rgba(0,0,0,.5)}
+    .modal h3{font-size:.97rem;font-weight:600;margin-bottom:1rem}
+    .modal label{margin-top:.6rem}
+    .modal-actions{display:flex;gap:.5rem;margin-top:1rem}
+    .btn-cancel{flex:1;background:transparent;border:1px solid var(--border2);border-radius:var(--rsm);color:var(--muted2);font-size:.88rem;padding:.5rem;cursor:pointer;transition:all .15s}
+    .btn-cancel:hover{color:var(--text);border-color:var(--muted2)}
+    .modal .btn-primary{flex:1}
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Port Scanner
+  </a>
+  <div class="nav-right">
+    <div class="nav-user">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      {{ current_user }}
+    </div>
+    <a href="/logout" class="btn-logout">Odhlásiť</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <h1>Správa používateľov</h1>
+  <p class="sub">Pridávanie, deaktivácia a správa prístupov k aplikácii.</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash {{ cat }}">
+        {% if cat == 'ok' %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        {% else %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {% endif %}
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Pridanie používateľa -->
+  <div class="card">
+    <div class="card-title">Pridať používateľa</div>
+    <form method="POST" action="/admin/users/add">
+      <div class="fgrid">
+        <div>
+          <label for="new-username">Meno</label>
+          <input type="text" id="new-username" name="username" placeholder="jozef" required autocomplete="off"/>
+        </div>
+        <div>
+          <label for="new-password">Heslo</label>
+          <input type="password" id="new-password" name="password" placeholder="••••••••" required autocomplete="new-password"/>
+        </div>
+        <div>
+          <label for="new-role">Rola</label>
+          <select id="new-role" name="role">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div>
+          <button type="submit" class="btn-primary">Pridať</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Zoznam používateľov -->
+  <div class="card">
+    <div class="card-title">Zoznam používateľov ({{ users|length }})</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Meno</th>
+            <th>Rola</th>
+            <th>Stav</th>
+            <th>Vytvorený</th>
+            <th>Akcie</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td style="color:var(--muted);font-size:.8rem">{{ u.id }}</td>
+            <td style="font-weight:500;font-family:monospace">{{ u.username }}</td>
+            <td>
+              {% if u.role == 'admin' %}
+                <span class="badge badge-admin">admin</span>
+              {% else %}
+                <span class="badge badge-user">user</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.active %}
+                <span class="badge badge-active">aktívny</span>
+              {% else %}
+                <span class="badge badge-inactive">neaktívny</span>
+              {% endif %}
+            </td>
+            <td style="color:var(--muted2);font-size:.78rem">{{ u.created_at[:10] }}</td>
+            <td>
+              <div class="actions">
+                <!-- Zmena hesla -->
+                <button class="btn" onclick="openPwModal({{ u.id }}, '{{ u.username }}')">Heslo</button>
+
+                {% if u.id != 1 %}
+                  <!-- Aktivácia / deaktivácia -->
+                  <form method="POST" action="/admin/users/{{ u.id }}/toggle" style="display:inline">
+                    {% if u.active %}
+                      <button type="submit" class="btn">Deaktivovať</button>
+                    {% else %}
+                      <button type="submit" class="btn btn-green">Aktivovať</button>
+                    {% endif %}
+                  </form>
+
+                  <!-- Zmazanie -->
+                  <form method="POST" action="/admin/users/{{ u.id }}/delete" style="display:inline"
+                        onsubmit="return confirm('Naozaj zmazať používateľa {{ u.username }}?')">
+                    <button type="submit" class="btn btn-red">Zmazať</button>
+                  </form>
+                {% else %}
+                  <span style="font-size:.73rem;color:var(--muted)">hlavný admin</span>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: zmena hesla -->
+<div class="modal-bg" id="pwModal" onclick="if(event.target===this)closePwModal()">
+  <div class="modal">
+    <h3>Zmena hesla — <span id="pwModalUser"></span></h3>
+    <form method="POST" id="pwForm">
+      <label for="pw-new">Nové heslo</label>
+      <input type="password" id="pw-new" name="password" placeholder="••••••••" required autocomplete="new-password"/>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closePwModal()">Zrušiť</button>
+        <button type="submit" class="btn-primary">Uložiť</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openPwModal(uid, username){
+  document.getElementById('pwModalUser').textContent = username;
+  document.getElementById('pwForm').action = '/admin/users/' + uid + '/password';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pwModal').classList.add('open');
+  setTimeout(()=>document.getElementById('pw-new').focus(), 50);
+}
+function closePwModal(){
+  document.getElementById('pwModal').classList.remove('open');
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePwModal(); });
+</script>
+
+</body>
+</html>

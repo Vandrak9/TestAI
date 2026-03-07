@@ -95,6 +95,31 @@ def init_db():
                 enabled        INTEGER DEFAULT 1
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                role          TEXT NOT NULL DEFAULT 'user',
+                active        INTEGER NOT NULL DEFAULT 1,
+                created_at    TEXT NOT NULL
+            )
+        """)
+        # Migrácia: ak je tabuľka prázdna, vytvor admina z env premenných
+        count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        if count == 0:
+            admin_user = os.environ.get("APP_USERNAME", "admin")
+            env_hash = os.environ.get("APP_PASSWORD_HASH")
+            if env_hash:
+                admin_hash = env_hash
+            else:
+                admin_hash = hashlib.sha256(
+                    os.environ.get("APP_PASSWORD", "admin").encode()
+                ).hexdigest()
+            conn.execute(
+                "INSERT INTO users (username, password_hash, role, active, created_at) VALUES (?, ?, 'admin', 1, ?)",
+                (admin_user, admin_hash, datetime.now().isoformat()),
+            )
 
 
 def _get_ttl(ip: str):
@@ -695,16 +720,16 @@ def _scheduler_loop():
 init_db()
 threading.Thread(target=_scheduler_loop, daemon=True).start()
 
-# Prihlasovacie údaje z premenných prostredia
-APP_USERNAME = os.environ.get("APP_USERNAME", "admin")
-APP_PASSWORD_HASH = os.environ.get(
-    "APP_PASSWORD_HASH",
-    hashlib.sha256(os.environ.get("APP_PASSWORD", "admin").encode()).hexdigest(),
-)
-
-
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
+
+
+def get_user(username: str):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        return conn.execute(
+            "SELECT * FROM users WHERE username = ? AND active = 1", (username,)
+        ).fetchone()
 
 
 def login_required(f):
@@ -712,6 +737,18 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if not session.get("logged_in"):
             return redirect(url_for("login", next=request.path))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login", next=request.path))
+        if session.get("role") != "admin":
+            flash("Nemáte oprávnenie na túto stránku.", "error")
+            return redirect(url_for("index"))
         return f(*args, **kwargs)
     return decorated
 
@@ -728,10 +765,12 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        if username == APP_USERNAME and hash_password(password) == APP_PASSWORD_HASH:
+        user = get_user(username)
+        if user and user["password_hash"] == hash_password(password):
             session.permanent = True
             session["logged_in"] = True
-            session["username"] = username
+            session["username"] = user["username"]
+            session["role"] = user["role"]
             next_url = request.args.get("next", url_for("index"))
             return redirect(next_url)
         else:
@@ -744,6 +783,104 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+# ── Admin: správa používateľov ─────────────────────────────────────────────────
+
+@app.route("/admin/users")
+@admin_required
+def admin_users():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        users = conn.execute(
+            "SELECT id, username, role, active, created_at FROM users ORDER BY id"
+        ).fetchall()
+    return render_template("users.html", users=users, current_user=session.get("username"))
+
+
+@app.route("/admin/users/add", methods=["POST"])
+@admin_required
+def admin_users_add():
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    role = request.form.get("role", "user")
+    if not username or not password:
+        flash("Meno a heslo sú povinné.", "error")
+        return redirect(url_for("admin_users"))
+    if role not in ("admin", "user"):
+        role = "user"
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                "INSERT INTO users (username, password_hash, role, active, created_at) VALUES (?, ?, ?, 1, ?)",
+                (username, hash_password(password), role, datetime.now().isoformat()),
+            )
+        flash(f"Používateľ '{username}' bol vytvorený.", "ok")
+    except sqlite3.IntegrityError:
+        flash(f"Používateľ '{username}' už existuje.", "error")
+    return redirect(url_for("admin_users"))
+
+
+@app.route("/admin/users/<int:uid>/delete", methods=["POST"])
+@admin_required
+def admin_users_delete(uid):
+    if uid == 1:
+        flash("Prvého admina nemožno zmazať.", "error")
+        return redirect(url_for("admin_users"))
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute("SELECT username FROM users WHERE id = ?", (uid,)).fetchone()
+        if row:
+            conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+            flash(f"Používateľ '{row[0]}' bol zmazaný.", "ok")
+    return redirect(url_for("admin_users"))
+
+
+@app.route("/admin/users/<int:uid>/toggle", methods=["POST"])
+@admin_required
+def admin_users_toggle(uid):
+    if uid == 1:
+        flash("Prvého admina nemožno deaktivovať.", "error")
+        return redirect(url_for("admin_users"))
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("UPDATE users SET active = 1 - active WHERE id = ?", (uid,))
+    return redirect(url_for("admin_users"))
+
+
+@app.route("/admin/users/<int:uid>/password", methods=["POST"])
+@admin_required
+def admin_users_password(uid):
+    password = request.form.get("password", "")
+    if not password:
+        flash("Heslo nesmie byť prázdne.", "error")
+        return redirect(url_for("admin_users"))
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(password), uid))
+    flash("Heslo bolo zmenené.", "ok")
+    return redirect(url_for("admin_users"))
+
+
+@app.route("/profile/password", methods=["POST"])
+@login_required
+def profile_change_password():
+    current = request.form.get("current_password", "")
+    new_pw = request.form.get("new_password", "")
+    if not new_pw:
+        flash("Nové heslo nesmie byť prázdne.", "error")
+        return redirect(url_for("index"))
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE username = ?", (session["username"],)
+        ).fetchone()
+    if not row or row[0] != hash_password(current):
+        flash("Aktuálne heslo je nesprávne.", "error")
+        return redirect(url_for("index"))
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (hash_password(new_pw), session["username"]),
+        )
+    flash("Heslo bolo úspešne zmenené.", "ok")
+    return redirect(url_for("index"))
 
 
 @app.route("/api/myip")
@@ -1129,6 +1266,7 @@ def geowhois_api(target):
 def scan_udp_route():
     """SSE: UDP sken pre zadaný host."""
     host = request.args.get("host", "").strip()
+    scan_id = request.args.get("scan_id", type=int)
     if not host:
         return Response("Chyba: host je povinný", status=400)
 
@@ -1143,6 +1281,14 @@ def scan_udp_route():
         yield send("udp_start", {"host": host, "ip": ip, "count": len(_UDP_DEFAULT_PORTS)})
         results = scan_udp(ip, _UDP_DEFAULT_PORTS)
         open_ports = [r for r in results if r["state"] in ("open", "open|filtered")]
+        # Ulož do DB ak máme scan_id
+        if scan_id:
+            try:
+                with sqlite3.connect(DB_PATH) as conn:
+                    conn.execute("UPDATE scans SET udp_ports=? WHERE id=?",
+                                 (json.dumps(results, ensure_ascii=False), scan_id))
+            except Exception:
+                pass
         yield send("udp_done", {
             "host": host, "ip": ip,
             "results": results,
@@ -1309,5 +1455,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("DEBUG", "false").lower() == "true"
     print(f"[*] Spúšťam web server na http://0.0.0.0:{port}")
-    print(f"[*] Prihlásenie: {APP_USERNAME} / (nastavené cez APP_PASSWORD)")
+    print(f"[*] Prihlásenie: spravuj používateľov na /admin/users")
     app.run(host="0.0.0.0", port=port, debug=debug, threaded=True)

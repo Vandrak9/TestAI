@@ -262,6 +262,9 @@
     Port Scanner
   </div>
   <div class="nav-right">
+    {% if session.role == 'admin' %}
+    <a href="/admin/users" class="btn-logout" style="color:var(--muted2)">Používatelia</a>
+    {% endif %}
     <div class="nav-user">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       {{ username }}
@@ -271,6 +274,21 @@
 </nav>
 
 <div class="wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="border-radius:8px;padding:.6rem .95rem;font-size:.84rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;
+        {% if cat == 'ok' %}background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#34d399;
+        {% else %}background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#f87171;{% endif %}">
+        {% if cat == 'ok' %}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        {% else %}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {% endif %}
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endwith %}
 
   <div class="ip-bar">
     <div class="ip-dot"></div>
@@ -622,23 +640,28 @@ function startSingleScan(host, ports, threads){
     const d=JSON.parse(e.data);
     renderGeoWhois(d.geo, d.whois);
   });
-  function done(){
+  let _uiReset=false;
+  function resetScanBtn(){
+    if(_uiReset) return; _uiReset=true;
     if(evtSource){evtSource.close();evtSource=null;}
     document.getElementById('btnScan').disabled=false;
     document.getElementById('btnLabel').textContent='Spustiť sken';
     setStatus('Sken dokončený.');
-    // Spusti UDP sken ak je zaškrtnutý
-    if(document.getElementById('chkUdp').checked && currentScanId!==null){
-      const host=document.getElementById('host').value.trim();
-      startUdpScan(host);
-    }
   }
-  evtSource.addEventListener('done',done);
+  // UDP sken len z explicitného done eventu — nie z onerror
+  evtSource.addEventListener('done',()=>{
+    const sidForUdp=currentScanId;
+    resetScanBtn();
+    if(document.getElementById('chkUdp').checked && sidForUdp!==null){
+      const host=document.getElementById('host').value.trim();
+      startUdpScan(host, sidForUdp);
+    }
+  });
   evtSource.addEventListener('error',e=>{
     try{setStatus('Chyba: '+JSON.parse(e.data).message);}catch{setStatus('Chyba spojenia.');}
-    done();
+    resetScanBtn();
   });
-  evtSource.onerror=done;
+  evtSource.onerror=resetScanBtn;
 }
 
 function startRangeScan(host, ports, threads){
@@ -859,13 +882,15 @@ function renderGeoWhois(geo, whois){
 }
 
 // ── UDP sken ──────────────────────────────────────────────────────────
-function startUdpScan(host){
+function startUdpScan(host, scanId){
   const wrap=document.getElementById('udpWrap');
   const tbody=document.getElementById('udpBody');
   const statusEl=document.getElementById('udpStatus');
   wrap.style.display=''; tbody.innerHTML='';
   statusEl.textContent='Spúšťam UDP sken…';
-  const src=new EventSource(`/scan-udp?host=${encodeURIComponent(host)}`);
+  const sid=scanId!=null?scanId:currentScanId;
+  const sidParam=sid!=null?`&scan_id=${sid}`:'';
+  const src=new EventSource(`/scan-udp?host=${encodeURIComponent(host)}${sidParam}`);
   src.addEventListener('udp_start',e=>{
     const d=JSON.parse(e.data);
     statusEl.textContent=`Skenujem ${d.count} UDP portov na ${d.ip}…`;
@@ -895,6 +920,11 @@ function startUdpScan(host){
         const c4=tr.insertCell(); c4.className='banner-c'; c4.textContent=r.banner||'';
       });
     }
+    // Legenda
+    const legend=document.createElement('div');
+    legend.style.cssText='font-size:.73rem;color:var(--muted);margin-top:.5rem;line-height:1.6';
+    legend.innerHTML='<strong style="color:var(--yellow)">OPEN</strong> — port odpovedal (definitívne otvorený) &nbsp;·&nbsp; <strong style="color:var(--muted2)">FILTERED</strong> — žiadna odpoveď ani ICMP odmietnutie; môže byť otvorený alebo blokovaný firewallom &nbsp;·&nbsp; <strong style="color:var(--red)">CLOSED</strong> — ICMP Port Unreachable (definitívne zatvorený)';
+    wrap.appendChild(legend);
     src.close();
   });
   src.onerror=()=>{statusEl.textContent='UDP sken: chyba spojenia'; src.close();};
@@ -1115,6 +1145,10 @@ function makeHistItem(scan, inGroup){
     else{hb.className='hbadge hb-green';hb.textContent='✅ HTTP';}
     meta.appendChild(hb);
   }
+  if(scan.udp_ports){
+    let udpCnt=0;try{udpCnt=JSON.parse(scan.udp_ports).filter(r=>r.state==='open'||r.state==='open|filtered').length;}catch{}
+    if(udpCnt>0){const bu=document.createElement('span');bu.className='hbadge';bu.style.cssText='background:rgba(245,158,11,.1);color:var(--yellow);border:1px solid rgba(245,158,11,.22);font-size:.7rem;font-weight:600;padding:.12rem .48rem;border-radius:99px';bu.textContent='UDP: '+udpCnt;meta.appendChild(bu);}
+  }
   if(hasAi){const b3=document.createElement('span');b3.className='hbadge hb-gray';b3.textContent='AI ✓';meta.appendChild(b3);}
   head.appendChild(meta);
 
@@ -1156,6 +1190,42 @@ function makeHistItem(scan, inGroup){
       httpDiv.appendChild(httpTitle);
       renderHttpResults(httpDiv, httpRes);
       body.appendChild(httpDiv);
+    }
+  }
+
+  // UDP výsledky
+  if(scan.udp_ports){
+    let udpRes; try{udpRes=JSON.parse(scan.udp_ports);}catch{udpRes=[];}
+    const udpOpen=udpRes.filter(r=>r.state==='open'||r.state==='open|filtered');
+    if(udpOpen.length){
+      const udpDiv=document.createElement('div');
+      udpDiv.style.cssText='padding:.6rem 1rem;border-bottom:1px solid rgba(255,255,255,.06)';
+      const udpTitle=document.createElement('div');
+      udpTitle.style.cssText='font-size:.72rem;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.4rem';
+      udpTitle.textContent='UDP sken';
+      udpDiv.appendChild(udpTitle);
+      const scr=document.createElement('div');scr.className='tscroll';
+      const tbl=document.createElement('table');
+      tbl.innerHTML='<thead><tr><th>Port</th><th>Stav</th><th>Služba</th><th>Banner</th></tr></thead>';
+      const tb=document.createElement('tbody');
+      udpOpen.forEach(r=>{
+        const tr=tb.insertRow();
+        const c1=tr.insertCell();c1.className='pnum';c1.textContent=r.port;
+        const c2=tr.insertCell();
+        const b=document.createElement('span');
+        b.className=r.state==='open'?'badge-udp-open':'badge-udp-filtered';
+        b.textContent=r.state==='open'?'OPEN':'FILTERED';
+        c2.appendChild(b);
+        const c3=tr.insertCell();c3.textContent=r.service||'';
+        const c4=tr.insertCell();c4.className='banner-c';c4.textContent=r.banner||'';
+      });
+      tbl.appendChild(tb);scr.appendChild(tbl);udpDiv.appendChild(scr);
+      // Legenda stavov
+      const legend=document.createElement('div');
+      legend.style.cssText='font-size:.73rem;color:var(--muted);margin-top:.5rem;line-height:1.6';
+      legend.innerHTML='<strong style="color:var(--yellow)">OPEN</strong> — port odpovedal (definitívne otvorený) &nbsp;·&nbsp; <strong style="color:var(--muted2)">FILTERED</strong> — žiadna odpoveď ani ICMP odmietnutie; port môže byť otvorený alebo blokovaný firewallom &nbsp;·&nbsp; <strong style="color:var(--red)">CLOSED</strong> — ICMP Port Unreachable (definitívne zatvorený)';
+      udpDiv.appendChild(legend);
+      body.appendChild(udpDiv);
     }
   }
 
