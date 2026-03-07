@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0] – 2026-03-07
+
+### Pridané
+- **UDP sken** — checkbox v konfigurácii spustí sken 18 bežných UDP portov (DNS, NTP, SNMP, NetBIOS, SIP, UPnP, OpenVPN, IPsec, mDNS, DHCP, TFTP, Syslog, IPMI, IKE, RIP, RPC); detekcia ICMP port unreachable; rozlišuje stavy `open`, `open|filtered`, `closed`
+- **Geolokácia** — automaticky po každom skene; zobrazuje krajinu, región, mesto, ISP, organizáciu a ASN cez ip-api.com (bez API kľúča, 45 req/min)
+- **Whois** — automaticky po každom skene; parsuje kľúčové polia (sieť, organizácia, krajina, dátumy, nameservery, abuse kontakt) cez systémový `whois`
+- Výsledky geo/whois uložené v DB (`geo_whois TEXT`), zobrazené v karte po skene aj v histórii
+- Badge s kódom krajiny (🌍 SK) v group headeri histórie
+
+### Opravené
+- **TLS auto-detekcia na neštandardných portoch** — `check_http_security` teraz vyskúša TLS pripojenie na ľubovoľnom porte; ak uspeje → HTTPS sken, inak HTTP (predtým fungoval TLS iba na 443, 8443, 9443)
+
+### Interné zmeny
+- Nové DB stĺpce: `geo_whois TEXT`, `udp_ports TEXT` (s automatickou migráciou)
+- Nové API endpointy: `GET /api/geowhois/<target>`, `GET /scan-udp` (SSE stream)
+- Servisné funkcie: `scan_udp()`, `geoip_lookup()`, `whois_lookup()`
+
 ## [0.1.0] – 2026-03-07
 
 ### Pridané

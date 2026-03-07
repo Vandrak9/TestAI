@@ -234,6 +234,24 @@
     .toggle-off{background:rgba(255,255,255,.05);color:var(--muted2);border-color:var(--border2)}
     .toggle-off:hover{background:rgba(255,255,255,.1)}
     .sched-empty{text-align:center;padding:2rem;color:var(--muted);font-size:.88rem}
+
+    /* GEO / WHOIS */
+    #geoCard{display:none;margin-bottom:.9rem}
+    .geo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:.45rem;margin-bottom:.6rem}
+    .geo-item{background:var(--bg2);border-radius:var(--rsm);padding:.45rem .65rem}
+    .geo-key{font-size:.68rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px}
+    .geo-val{font-size:.86rem;font-weight:600;color:var(--text);margin-top:.08rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .whois-block{background:var(--bg2);border-radius:var(--rsm);padding:.55rem .75rem;margin-top:.4rem}
+    .whois-row{display:flex;gap:.5rem;font-size:.8rem;padding:.18rem 0;border-bottom:1px solid rgba(255,255,255,.04)}
+    .whois-row:last-child{border-bottom:none}
+    .whois-k{color:var(--muted2);width:110px;flex-shrink:0}
+    .whois-v{color:var(--text);word-break:break-all}
+
+    /* UDP */
+    #udpWrap{display:none;margin-bottom:.9rem}
+    .badge-udp-open{background:rgba(245,158,11,.1);color:var(--yellow);font-size:.7rem;font-weight:700;padding:.12rem .45rem;border-radius:99px;border:1px solid rgba(245,158,11,.22)}
+    .badge-udp-filtered{background:rgba(100,116,139,.08);color:var(--muted2);font-size:.7rem;font-weight:700;padding:.12rem .45rem;border-radius:99px;border:1px solid var(--border2)}
+    .hb-geo{background:rgba(99,102,241,.1);color:#a5b4fc;border:1px solid rgba(99,102,241,.25);font-size:.7rem;font-weight:600;padding:.12rem .48rem;border-radius:99px;white-space:nowrap}
   </style>
 </head>
 <body>
@@ -314,6 +332,12 @@
           <label>Vlákna</label>
           <input id="threads" type="number" value="100" min="10" max="300"/>
         </div>
+        <div class="full" style="margin-top:.1rem">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.82rem">
+            <input type="checkbox" id="chkUdp" style="width:auto;accent-color:var(--accent)"/>
+            Zahrnúť UDP sken (DNS, NTP, SNMP, SIP, UPnP…)
+          </label>
+        </div>
       </div>
       <div id="progressWrap">
         <div class="prog-track"><div id="progFill"></div></div>
@@ -334,6 +358,22 @@
       <div class="tscroll">
         <table><thead><tr><th>Port</th><th>Stav</th><th>Služba</th><th>Banner</th></tr></thead>
         <tbody id="portBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- Geo / Whois karta -->
+    <div class="card" id="geoCard">
+      <div class="card-title">Geolokácia &amp; Whois</div>
+      <div id="geoOutput"></div>
+    </div>
+
+    <!-- UDP výsledky -->
+    <div class="card" id="udpWrap">
+      <div class="card-title">UDP sken</div>
+      <div id="udpStatus" style="font-size:.8rem;color:var(--muted2);margin-bottom:.5rem"></div>
+      <div class="tscroll">
+        <table><thead><tr><th>Port</th><th>Stav</th><th>Služba</th><th>Banner</th></tr></thead>
+        <tbody id="udpBody"></tbody></table>
       </div>
     </div>
 
@@ -522,6 +562,11 @@ function startScan(){
   document.getElementById('btnHttp').style.display='';
   document.getElementById('btnHttpLabel').textContent='HTTP/HTTPS Security Check';
   document.getElementById('aiCard').style.display='none';
+  document.getElementById('geoCard').style.display='none';
+  document.getElementById('geoOutput').innerHTML='';
+  document.getElementById('udpWrap').style.display='none';
+  document.getElementById('udpBody').innerHTML='';
+  document.getElementById('udpStatus').textContent='';
   document.getElementById('aiOutput').innerHTML='';
   document.getElementById('aiOutput')._raw='';
   document.getElementById('btnAiWrap').style.display='none';
@@ -573,11 +618,20 @@ function startSingleScan(host, ports, threads){
     _httpAutoRan=true;
     // results saved to DB and shown in history only
   });
+  evtSource.addEventListener('geo_whois',e=>{
+    const d=JSON.parse(e.data);
+    renderGeoWhois(d.geo, d.whois);
+  });
   function done(){
     if(evtSource){evtSource.close();evtSource=null;}
     document.getElementById('btnScan').disabled=false;
     document.getElementById('btnLabel').textContent='Spustiť sken';
     setStatus('Sken dokončený.');
+    // Spusti UDP sken ak je zaškrtnutý
+    if(document.getElementById('chkUdp').checked && currentScanId!==null){
+      const host=document.getElementById('host').value.trim();
+      startUdpScan(host);
+    }
   }
   evtSource.addEventListener('done',done);
   evtSource.addEventListener('error',e=>{
@@ -758,6 +812,93 @@ function addPortRow(tbody, d){
 }
 
 document.getElementById('host').addEventListener('keydown',e=>{if(e.key==='Enter')startScan();});
+
+// ── Geo / Whois ───────────────────────────────────────────────────────
+function renderGeoWhois(geo, whois){
+  const card=document.getElementById('geoCard');
+  const out=document.getElementById('geoOutput');
+  if(!geo && !whois){return;}
+  card.style.display='';
+  out.innerHTML='';
+  // Geo grid
+  if(geo && !geo.error){
+    const grid=document.createElement('div'); grid.className='geo-grid';
+    const geoFields=[
+      ['Krajina', (geo.flag||'')+(geo.country||'')+(geo.countryCode?' ('+geo.countryCode+')':'')],
+      ['Región', geo.regionName],['Mesto', geo.city],
+      ['ISP', geo.isp],['Organizácia', geo.org],['ASN', geo.as],
+    ];
+    geoFields.forEach(([k,v])=>{
+      if(!v) return;
+      const item=document.createElement('div'); item.className='geo-item';
+      item.innerHTML=`<div class="geo-key">${escHtml(k)}</div><div class="geo-val" title="${escHtml(v)}">${escHtml(v)}</div>`;
+      grid.appendChild(item);
+    });
+    out.appendChild(grid);
+  } else if(geo && geo.error){
+    const err=document.createElement('div');
+    err.style.cssText='font-size:.8rem;color:var(--muted2);margin-bottom:.5rem';
+    err.textContent='Geolokácia: '+geo.error;
+    out.appendChild(err);
+  }
+  // Whois
+  if(whois && whois.parsed && Object.keys(whois.parsed).length){
+    const block=document.createElement('div'); block.className='whois-block';
+    Object.entries(whois.parsed).forEach(([k,v])=>{
+      const row=document.createElement('div'); row.className='whois-row';
+      row.innerHTML=`<span class="whois-k">${escHtml(k)}</span><span class="whois-v">${escHtml(v)}</span>`;
+      block.appendChild(row);
+    });
+    out.appendChild(block);
+  } else if(whois && whois.error){
+    const err=document.createElement('div');
+    err.style.cssText='font-size:.8rem;color:var(--muted2)';
+    err.textContent='Whois: '+whois.error;
+    out.appendChild(err);
+  }
+}
+
+// ── UDP sken ──────────────────────────────────────────────────────────
+function startUdpScan(host){
+  const wrap=document.getElementById('udpWrap');
+  const tbody=document.getElementById('udpBody');
+  const statusEl=document.getElementById('udpStatus');
+  wrap.style.display=''; tbody.innerHTML='';
+  statusEl.textContent='Spúšťam UDP sken…';
+  const src=new EventSource(`/scan-udp?host=${encodeURIComponent(host)}`);
+  src.addEventListener('udp_start',e=>{
+    const d=JSON.parse(e.data);
+    statusEl.textContent=`Skenujem ${d.count} UDP portov na ${d.ip}…`;
+  });
+  src.addEventListener('udp_done',e=>{
+    const d=JSON.parse(e.data);
+    statusEl.textContent=`UDP: ${d.open_count} otvorených/filtrovaných portov`;
+    const interesting=d.results.filter(r=>r.state!=='closed'&&r.state!=='error');
+    if(!interesting.length){
+      const tr=tbody.insertRow();
+      const td=tr.insertCell(); td.colSpan=4;
+      td.style.cssText='color:var(--muted2);font-size:.82rem;text-align:center;padding:.6rem';
+      td.textContent='Žiadne otvorené / filtrované UDP porty';
+    } else {
+      interesting.forEach(r=>{
+        const tr=tbody.insertRow();
+        const c1=tr.insertCell(); c1.className='pnum'; c1.textContent=r.port;
+        const c2=tr.insertCell();
+        if(r.state==='open'){
+          const b=document.createElement('span'); b.className='badge-udp-open'; b.textContent='OPEN';
+          c2.appendChild(b);
+        } else {
+          const b=document.createElement('span'); b.className='badge-udp-filtered'; b.textContent='FILTERED';
+          c2.appendChild(b);
+        }
+        const c3=tr.insertCell(); c3.textContent=r.service||'';
+        const c4=tr.insertCell(); c4.className='banner-c'; c4.textContent=r.banner||'';
+      });
+    }
+    src.close();
+  });
+  src.onerror=()=>{statusEl.textContent='UDP sken: chyba spojenia'; src.close();};
+}
 
 // ── HTTP Security Check ───────────────────────────────────────────────
 async function httpCheckCurrentScan(){
@@ -1018,6 +1159,44 @@ function makeHistItem(scan, inGroup){
     }
   }
 
+  // Geo / Whois
+  if(scan.geo_whois){
+    let gw; try{gw=JSON.parse(scan.geo_whois);}catch{gw=null;}
+    if(gw){
+      const gwDiv=document.createElement('div');
+      gwDiv.style.cssText='padding:.6rem 1rem;border-bottom:1px solid rgba(255,255,255,.06)';
+      const gwTitle=document.createElement('div');
+      gwTitle.style.cssText='font-size:.72rem;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.4rem';
+      gwTitle.textContent='Geolokácia & Whois';
+      gwDiv.appendChild(gwTitle);
+      const geo=gw.geo||{}, whois=gw.whois||{};
+      if(geo&&!geo.error){
+        const gline=document.createElement('div');
+        gline.style.cssText='font-size:.82rem;color:var(--muted2);margin-bottom:.25rem;display:flex;flex-wrap:wrap;gap:.4rem';
+        const parts=[];
+        if(geo.country) parts.push('🌍 '+geo.country+(geo.countryCode?' ('+geo.countryCode+')':''));
+        if(geo.city) parts.push('📍 '+geo.city);
+        if(geo.isp) parts.push('🌐 '+geo.isp);
+        if(geo.as) parts.push('ASN: '+geo.as);
+        parts.forEach(p=>{const s=document.createElement('span');s.textContent=p;gline.appendChild(s);});
+        gwDiv.appendChild(gline);
+      }
+      if(whois.parsed&&Object.keys(whois.parsed).length){
+        const wp=document.createElement('div');
+        wp.style.cssText='font-size:.78rem;color:var(--muted2)';
+        const wentries=Object.entries(whois.parsed).slice(0,6);
+        wentries.forEach(([k,v])=>{
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;gap:.4rem;padding:.08rem 0';
+          row.innerHTML=`<span style="color:var(--muted);width:100px;flex-shrink:0">${escHtml(k)}</span><span style="color:var(--text)">${escHtml(v)}</span>`;
+          wp.appendChild(row);
+        });
+        gwDiv.appendChild(wp);
+      }
+      body.appendChild(gwDiv);
+    }
+  }
+
   // AI analysis
   const aiDiv=document.createElement('div');aiDiv.id='hai-'+scan.id;
   if(hasAi){aiDiv.className='hai';aiDiv.innerHTML=md(scan.ai_analysis);}
@@ -1106,6 +1285,20 @@ function makeIpGroup(ip, scans){
     else if(worstHttp.medium>0){hb.className='ig-cnt';hb.style.cssText='background:var(--yellow);color:#000;font-size:.67rem;font-weight:700;padding:.08rem .42rem;border-radius:99px';hb.textContent='🟡 HTTP';}
     else{hb.className='ig-cnt';hb.style.background='var(--green)';hb.textContent='✅ HTTP';}
     head.appendChild(hb);
+  }
+
+  // Geo badge (krajina)
+  const newestWithGeo=scans.find(s=>s.geo_whois);
+  if(newestWithGeo){
+    try{
+      const gw=JSON.parse(newestWithGeo.geo_whois);
+      if(gw.geo&&!gw.geo.error&&gw.geo.country){
+        const gb=document.createElement('span'); gb.className='ig-cnt';
+        gb.style.cssText='background:rgba(99,102,241,.18);color:#a5b4fc;font-size:.67rem;font-weight:700;padding:.08rem .42rem;border-radius:99px';
+        gb.textContent='🌍 '+gw.geo.countryCode;
+        head.appendChild(gb);
+      }
+    }catch{}
   }
 
   // Last scan time (right side)

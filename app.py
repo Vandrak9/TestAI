@@ -28,6 +28,22 @@ import anthropic
 
 from port_scanner import PREDEFINED_PROFILES, scan_port
 
+# ── UDP sken ───────────────────────────────────────────────────────────────────
+_UDP_SERVICES = {
+    53: 'DNS', 67: 'DHCP', 69: 'TFTP', 111: 'RPC', 123: 'NTP',
+    137: 'NetBIOS-NS', 138: 'NetBIOS-DGM', 161: 'SNMP', 162: 'SNMP-Trap',
+    500: 'IKE', 514: 'Syslog', 520: 'RIP', 623: 'IPMI', 1194: 'OpenVPN',
+    1900: 'UPnP/SSDP', 4500: 'IPsec-NAT', 5353: 'mDNS', 5060: 'SIP',
+}
+_UDP_PROBES = {
+    53:   b'\x00\x00\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x07version\x04bind\x00\x00\x10\x00\x03',
+    123:  b'\x1b' + b'\x00' * 47,
+    161:  b'\x30\x26\x02\x01\x00\x04\x06public\xa0\x19\x02\x04\x00\x00\x00\x01\x02\x01\x00\x02\x01\x00\x30\x0b\x30\x09\x06\x05\x2b\x06\x01\x02\x01\x00\x05\x00',
+    1900: b'M-SEARCH * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nMAN:"ssdp:discover"\r\nMX:2\r\nST:ssdp:all\r\n\r\n',
+    5353: b'\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x05_http\x04_tcp\x05local\x00\x00\x0c\x00\x01',
+}
+_UDP_DEFAULT_PORTS = sorted(_UDP_SERVICES.keys())
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 
@@ -62,6 +78,10 @@ def init_db():
             conn.execute("ALTER TABLE scans ADD COLUMN http_security TEXT")
         if "total_scanned" not in existing:
             conn.execute("ALTER TABLE scans ADD COLUMN total_scanned INTEGER")
+        if "geo_whois" not in existing:
+            conn.execute("ALTER TABLE scans ADD COLUMN geo_whois TEXT")
+        if "udp_ports" not in existing:
+            conn.execute("ALTER TABLE scans ADD COLUMN udp_ports TEXT")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS schedules (
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -243,6 +263,107 @@ def detect_tarpit(open_ports: list, total_scanned: int) -> dict:
     return result
 
 
+def scan_udp(ip: str, ports: list, timeout: float = 2.0) -> list:
+    """Skenuje UDP porty; detekuje ICMP port unreachable (vyžaduje root)."""
+    results = []
+    try:
+        icmp_sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+        icmp_sock.settimeout(0.5)
+    except Exception:
+        icmp_sock = None
+    try:
+        for port in ports:
+            service = _UDP_SERVICES.get(port, 'unknown')
+            probe = _UDP_PROBES.get(port, b'\x00')
+            udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            udp_sock.settimeout(timeout)
+            try:
+                udp_sock.sendto(probe, (ip, port))
+                try:
+                    data, _ = udp_sock.recvfrom(1024)
+                    banner = data[:64].decode('utf-8', errors='replace').strip()
+                    results.append({'port': port, 'state': 'open', 'service': service, 'banner': banner})
+                    continue
+                except socket.timeout:
+                    pass
+                # Skontroluj ICMP port unreachable
+                if icmp_sock:
+                    closed = False
+                    try:
+                        while True:
+                            raw, addr = icmp_sock.recvfrom(1024)
+                            if addr[0] == ip and len(raw) >= 52:
+                                # raw[20]=type, raw[21]=code; orig UDP dst port = raw[50:52]
+                                if raw[20] == 3 and raw[21] == 3:
+                                    orig_port = (raw[50] << 8) | raw[51]
+                                    if orig_port == port:
+                                        closed = True
+                                        break
+                    except socket.timeout:
+                        pass
+                    if closed:
+                        results.append({'port': port, 'state': 'closed', 'service': service})
+                        continue
+                results.append({'port': port, 'state': 'open|filtered', 'service': service})
+            except Exception as e:
+                results.append({'port': port, 'state': 'error', 'service': service, 'error': str(e)[:60]})
+            finally:
+                udp_sock.close()
+    finally:
+        if icmp_sock:
+            icmp_sock.close()
+    return results
+
+
+def geoip_lookup(ip: str) -> dict:
+    """Geolokácia IP adresy cez ip-api.com (bezplatné, 45 req/min)."""
+    try:
+        url = f'http://ip-api.com/json/{ip}?fields=status,message,country,countryCode,regionName,city,isp,org,as,query'
+        req = urllib.request.Request(url, headers={'User-Agent': 'PortScanner/1.0'})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            data = json.loads(r.read())
+        if data.get('status') == 'success':
+            return data
+        return {'error': data.get('message', 'geolokácia zlyhala')}
+    except Exception as e:
+        return {'error': str(e)[:80]}
+
+
+def whois_lookup(target: str) -> dict:
+    """Whois lookup pre IP alebo doménu."""
+    try:
+        result = subprocess.run(
+            ['whois', target],
+            capture_output=True, text=True, timeout=12,
+            env={**os.environ, 'LANG': 'C'},
+        )
+        raw = result.stdout[:3000]
+        parsed = {}
+        _keys = {
+            'netname': 'Sieť', 'org-name': 'Organizácia', 'orgname': 'Organizácia',
+            'country': 'Krajina', 'descr': 'Popis', 'created': 'Vytvorené',
+            'last-modified': 'Upravené', 'registrant': 'Registrant',
+            'registrar': 'Registrar', 'creation date': 'Vytvorené',
+            'updated date': 'Upravené', 'name server': 'Nameserver',
+            'mnt-by': 'Spravuje', 'abuse-mailbox': 'Abuse',
+        }
+        seen: set = set()
+        for line in raw.splitlines():
+            if ':' not in line or line.startswith('%') or line.startswith('#'):
+                continue
+            key, _, val = line.partition(':')
+            k = key.strip().lower()
+            v = val.strip()
+            if v and k in _keys and k not in seen:
+                seen.add(k)
+                parsed[_keys[k]] = v
+        return {'parsed': parsed, 'raw': raw}
+    except FileNotFoundError:
+        return {'error': 'whois nie je nainštalovaný'}
+    except Exception as e:
+        return {'error': str(e)[:80]}
+
+
 _WEAK_CIPHERS = {"RC4", "DES", "3DES", "EXPORT", "NULL", "anon", "MD5", "IDEA", "SEED"}
 _SEC_HEADERS = {
     "strict-transport-security": ("HSTS", "critical",
@@ -296,7 +417,14 @@ def _tls_connect(host: str, port: int, max_ver, min_ver=None):
 
 def check_http_security(host: str, port: int) -> dict:
     """Skontroluje HTTP/HTTPS bezpečnosť daného portu."""
-    use_tls = port in {443, 8443, 9443}
+    if port in {443, 8443, 9443}:
+        use_tls = True
+    elif port in {80, 8080, 8000, 3000, 8888, 9090}:
+        use_tls = False
+    else:
+        # Auto-detekcia: skús TLS pripojenie
+        test = _tls_connect(host, port, ssl.TLSVersion.TLSv1_2)
+        use_tls = test is not None
     findings = []   # [{severity, title, detail}]
     tls_info = {}
     cert_info = {}
@@ -662,7 +790,7 @@ def history():
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            "SELECT id, timestamp, host, ip, port_label, open_count, total_scanned, open_ports, ai_analysis, os_hint, device_type, http_security "
+            "SELECT id, timestamp, host, ip, port_label, open_count, total_scanned, open_ports, ai_analysis, os_hint, device_type, http_security, geo_whois, udp_ports "
             "FROM scans ORDER BY id DESC LIMIT 100"
         ).fetchall()
     return jsonify([dict(r) for r in rows])
@@ -746,6 +874,17 @@ def stream_scan(host: str, ports: list, threads: int = 100, timeout: float = 1.0
             conn.execute("UPDATE scans SET http_security=? WHERE id=?",
                          (json.dumps(http_results, ensure_ascii=False), scan_id))
         yield send("http_security", {"results": http_results, "scan_id": scan_id})
+
+    # Auto geo + whois
+    try:
+        geo = geoip_lookup(ip)
+        whois_data = whois_lookup(host)
+        geo_whois_json = json.dumps({'geo': geo, 'whois': whois_data}, ensure_ascii=False)
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("UPDATE scans SET geo_whois=? WHERE id=?", (geo_whois_json, scan_id))
+        yield send("geo_whois", {"geo": geo, "whois": whois_data})
+    except Exception:
+        pass
 
     yield send("done", {})
 
@@ -969,6 +1108,53 @@ def run_schedule_now(sid):
             (now_str, next_run, status, sid),
         )
     return jsonify({"ok": True, "scan_id": scan_id})
+
+
+@app.route("/api/geowhois/<path:target>")
+@login_required
+def geowhois_api(target):
+    """Geolokácia + whois pre IP alebo doménu."""
+    target = target.strip()
+    try:
+        ip = socket.gethostbyname(target)
+    except socket.gaierror:
+        ip = target
+    geo = geoip_lookup(ip)
+    whois_data = whois_lookup(target)
+    return jsonify({"ip": ip, "geo": geo, "whois": whois_data})
+
+
+@app.route("/scan-udp")
+@login_required
+def scan_udp_route():
+    """SSE: UDP sken pre zadaný host."""
+    host = request.args.get("host", "").strip()
+    if not host:
+        return Response("Chyba: host je povinný", status=400)
+
+    def gen():
+        def send(event, data):
+            return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+        try:
+            ip = socket.gethostbyname(host)
+        except socket.gaierror:
+            yield send("error", {"message": f"Nemožno preložiť hostname: {host}"})
+            return
+        yield send("udp_start", {"host": host, "ip": ip, "count": len(_UDP_DEFAULT_PORTS)})
+        results = scan_udp(ip, _UDP_DEFAULT_PORTS)
+        open_ports = [r for r in results if r["state"] in ("open", "open|filtered")]
+        yield send("udp_done", {
+            "host": host, "ip": ip,
+            "results": results,
+            "open_count": len(open_ports),
+        })
+        yield send("done", {})
+
+    return Response(
+        stream_with_context(gen()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── Porovnanie skenov ──────────────────────────────────────────────────────────

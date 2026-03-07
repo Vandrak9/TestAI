@@ -12,7 +12,10 @@ Webový nástroj na skenovanie portov s AI analýzou (Claude), detekciou OS, HTT
 | Hromadný sken | Rozsah IP adries, nastaviteľný počet vlákien |
 | Detekcia OS | TTL analýza, banner grabbing, port heuristika |
 | Detekcia tarpit | Identifikuje honeypot/tarpit mechanizmy (MikroTik a pod.) |
-| HTTP/HTTPS sken | TLS verzia, expirácia certifikátu, bezpečnostné hlavičky |
+| HTTP/HTTPS sken | TLS verzia, expirácia certifikátu, bezpečnostné hlavičky; auto-detekcia na ľubovoľnom porte |
+| UDP sken | DNS, NTP, SNMP, SIP, UPnP, OpenVPN, IPsec a ďalšie; detekcia ICMP unreachable |
+| Geolokácia | Krajina, región, mesto, ISP, ASN (ip-api.com, bez kľúča) |
+| Whois | Registrant, dátumy, nameservery, abuse kontakt |
 | AI analýza | Claude AI vyhodnotí nálezy a navrhne odporúčania |
 | História | SQLite, zoskupená podľa IP, posledných 100 záznamov |
 
@@ -155,5 +158,5 @@ openssl rand -hex 32
 
 ## Verzia
 
-Aktuálna verzia: **0.1.0**
+Aktuálna verzia: **0.2.0**
 Pozri [CHANGELOG.md](CHANGELOG.md) pre históriu zmien.
