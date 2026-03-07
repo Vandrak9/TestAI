@@ -42,8 +42,9 @@
     @media(max-width:480px){.btn-scanme{width:100%}}
 
     /* TABS */
-    .tabs{display:flex;gap:.2rem;border-bottom:1px solid var(--border);margin-bottom:1.1rem}
-    .tab{background:none;border:none;cursor:pointer;color:var(--muted2);font-size:.88rem;font-weight:500;padding:.6rem 1rem;position:relative;transition:color .15s;display:flex;align-items:center;gap:.38rem}
+    .tabs{display:flex;gap:.2rem;border-bottom:1px solid var(--border);margin-bottom:1.1rem;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{background:none;border:none;cursor:pointer;color:var(--muted2);font-size:.88rem;font-weight:500;padding:.6rem 1rem;position:relative;transition:color .15s;display:flex;align-items:center;gap:.38rem;white-space:nowrap;flex-shrink:0}
     .tab svg{width:14px;height:14px}
     .tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent);border-radius:2px 2px 0 0;transform:scaleX(0);transition:transform .2s}
     .tab.active{color:var(--text)}
@@ -350,7 +351,7 @@
     </button>
     <button class="tab" id="tbRekon" onclick="switchTab('rekon')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-      Rekon
+      DNS &amp; Ping
     </button>
   </div>
 
@@ -513,7 +514,7 @@
   <!-- ═══ REKON ═══ -->
   <div id="tabRekon" style="display:none">
     <div class="card">
-      <div class="card-title">Prieskum hostiteľa</div>
+      <div class="card-title">DNS záznamy · Ping · SSL certifikát</div>
       <div class="rekon-input-row">
         <input id="rekonHost" type="text" placeholder="example.com alebo 1.2.3.4" autocomplete="off"/>
         <button class="btn-rekon" id="btnRekon" onclick="runRekon()">Spustiť</button>
