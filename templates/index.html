@@ -1,335 +1,1333 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Port Scanner · AI Analýza</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --border: #30363d;
-      --accent: #238636;
-      --accent-hover: #2ea043;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --open: #3fb950;
-      --warn: #f85149;
-      --info: #58a6ff;
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#080d18;--bg2:#0e1524;--surface:#111827;--card:#131e30;
+      --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.14);
+      --accent:#3b82f6;--accent2:#2563eb;--green:#10b981;--red:#ef4444;
+      --yellow:#f59e0b;--text:#e8f0fe;--muted:#64748b;--muted2:#94a3b8;
+      --radius:12px;--rsm:8px;
     }
+    body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;min-height:100vh;line-height:1.6}
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
-      padding: 2rem 1rem;
-    }
+    /* NAV */
+    nav{position:sticky;top:0;z-index:100;background:rgba(8,13,24,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:.7rem 1.25rem}
+    .nav-brand{font-weight:700;font-size:.97rem;display:flex;align-items:center;gap:.5rem}
+    .nav-brand svg{width:18px;height:18px;color:var(--accent)}
+    .nav-right{display:flex;align-items:center;gap:.75rem}
+    .nav-user{color:var(--muted2);font-size:.8rem;display:flex;align-items:center;gap:.35rem}
+    .nav-user svg{width:14px;height:14px}
+    .btn-logout{font-size:.78rem;color:var(--muted2);border:1px solid var(--border2);border-radius:6px;padding:.28rem .7rem;text-decoration:none;transition:all .15s}
+    .btn-logout:hover{color:var(--text);border-color:var(--muted2)}
 
-    header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    header h1 { font-size: 1.8rem; letter-spacing: 1px; }
-    header p  { color: var(--muted); margin-top: 0.4rem; font-size: 0.9rem; }
+    .wrap{max-width:920px;margin:0 auto;padding:1.25rem 1rem 5rem}
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.5rem;
-      max-width: 860px;
-      margin: 0 auto 1.5rem;
-    }
+    /* IP BAR */
+    .ip-bar{background:linear-gradient(135deg,rgba(59,130,246,.07),rgba(16,185,129,.05));border:1px solid rgba(59,130,246,.18);border-radius:var(--radius);padding:.75rem 1.1rem;display:flex;align-items:center;flex-wrap:wrap;gap:.6rem 1.2rem;margin-bottom:1.1rem}
+    .ip-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s ease-in-out infinite;flex-shrink:0}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .ip-rows{display:flex;flex-direction:column;gap:.22rem;flex:1;min-width:180px}
+    .ip-row{display:flex;align-items:center;gap:.5rem}
+    .ip-label{color:var(--muted2);font-size:.74rem;width:72px;flex-shrink:0}
+    .ip-val{font-family:monospace;font-size:.95rem;font-weight:600;color:var(--accent)}
+    .ip-val-scanner{color:var(--yellow)}
+    .ip-srv-icon{width:13px;height:13px;color:var(--yellow);flex-shrink:0}
+    .btn-scanme{background:var(--accent);color:#fff;border:none;border-radius:var(--rsm);font-size:.8rem;padding:.38rem .85rem;cursor:pointer;transition:background .15s;white-space:nowrap;flex-shrink:0}
+    .btn-scanme:hover{background:var(--accent2)}
+    @media(max-width:480px){.btn-scanme{width:100%}}
 
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    /* TABS */
+    .tabs{display:flex;gap:.2rem;border-bottom:1px solid var(--border);margin-bottom:1.1rem}
+    .tab{background:none;border:none;cursor:pointer;color:var(--muted2);font-size:.88rem;font-weight:500;padding:.6rem 1rem;position:relative;transition:color .15s;display:flex;align-items:center;gap:.38rem}
+    .tab svg{width:14px;height:14px}
+    .tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent);border-radius:2px 2px 0 0;transform:scaleX(0);transition:transform .2s}
+    .tab.active{color:var(--text)}
+    .tab.active::after{transform:scaleX(1)}
+    .tab:hover{color:var(--text)}
+    .tbadge{background:var(--accent);color:#fff;font-size:.66rem;font-weight:700;padding:.08rem .38rem;border-radius:10px;min-width:16px;text-align:center}
 
-    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
+    /* CARD */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.15rem;margin-bottom:.9rem}
+    .card-title{font-size:.75rem;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.8rem}
 
-    input, select {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.95rem;
-    }
-    input:focus, select:focus { outline: 2px solid var(--info); border-color: var(--info); }
+    /* FORM */
+    .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+    @media(max-width:560px){.fgrid{grid-template-columns:1fr}}
+    .full{grid-column:1/-1}
+    label{display:block;font-size:.76rem;color:var(--muted2);font-weight:500;margin-bottom:.28rem}
+    input,select{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);padding:.52rem .75rem;font-size:.9rem;transition:border-color .15s,box-shadow .15s}
+    input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+    select option{background:var(--surface)}
 
-    .full { grid-column: 1 / -1; }
+    .btn-primary{width:100%;margin-top:.85rem;background:var(--accent);border:none;border-radius:var(--rsm);color:#fff;font-size:.93rem;font-weight:600;padding:.68rem;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:.45rem}
+    .btn-primary:hover:not(:disabled){background:var(--accent2)}
+    .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+    .btn-primary svg{width:15px;height:15px}
 
-    button#btnScan {
-      margin-top: 1rem;
-      width: 100%;
-      background: var(--accent);
-      border: none;
-      border-radius: 6px;
-      color: #fff;
-      font-size: 1rem;
-      padding: 0.7rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    button#btnScan:hover:not(:disabled)  { background: var(--accent-hover); }
-    button#btnScan:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* PROGRESS */
+    #progressWrap{display:none;margin-top:.8rem}
+    .prog-track{height:4px;background:var(--border2);border-radius:99px;overflow:hidden}
+    #progFill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));width:0%;transition:width .3s;border-radius:99px}
+    #progLabel{font-size:.75rem;color:var(--muted2);margin-top:.35rem;text-align:right}
+    #statusMsg{font-size:.8rem;color:var(--muted2);margin-top:.45rem;min-height:1.1em;display:flex;align-items:center;gap:.35rem}
 
-    /* Progress */
-    #progressWrap { display: none; margin-top: 1rem; }
-    #progressBar {
-      height: 6px;
-      background: var(--border);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    #progressFill {
-      height: 100%;
-      background: var(--info);
-      width: 0%;
-      transition: width 0.3s;
-    }
-    #progressLabel { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
+    /* PORT TABLE */
+    #portsWrap{display:none}
+    #portCount{font-size:.83rem;color:var(--green);font-weight:600;margin-bottom:.7rem}
+    .tscroll{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.86rem}
+    th{text-align:left;color:var(--muted2);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;padding:.4rem .65rem;border-bottom:1px solid var(--border2)}
+    td{padding:.42rem .65rem;border-bottom:1px solid var(--border);color:var(--text)}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.02)}
+    .badge-open{background:rgba(16,185,129,.1);color:var(--green);font-size:.7rem;font-weight:700;padding:.12rem .45rem;border-radius:99px;border:1px solid rgba(16,185,129,.22)}
+    .pnum{font-family:monospace;font-weight:700;color:var(--accent)}
+    .banner-c{color:var(--muted2);font-size:.76rem;font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-    /* Port table */
-    #portsWrap { display: none; }
-    #portCount { font-weight: 600; margin-bottom: 0.8rem; color: var(--open); }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th { text-align: left; color: var(--muted); font-weight: 500; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
-    td { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); }
-    tr:last-child td { border-bottom: none; }
-    .badge-open { color: var(--open); font-weight: 600; }
-    .port-num { font-family: monospace; }
-    .banner-cell { color: var(--muted); font-size: 0.8rem; font-family: monospace; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* AI */
+    #aiCard{display:none}
+    .ai-header{display:flex;align-items:center;gap:.55rem;margin-bottom:.8rem}
+    .ai-title{font-size:.75rem;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.8px}
+    #aiOutput{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rsm);padding:.9rem 1rem;font-size:.88rem;line-height:1.75;min-height:60px}
+    #aiOutput h3{color:var(--accent);font-size:.95rem;margin:.9rem 0 .25rem}
+    #aiOutput strong{color:var(--text)}
+    #aiOutput .li{padding-left:1rem;margin:.1rem 0;color:var(--muted2)}
 
-    /* AI sekcia */
-    #aiWrap { display: none; }
-    #aiWrap h2 { font-size: 1rem; color: var(--info); margin-bottom: 1rem; }
-    #aiOutput {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 1rem;
-      font-size: 0.92rem;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      min-height: 100px;
-    }
+    #btnAiWrap{display:none;margin-top:.8rem;flex-direction:column;gap:.5rem}
+    .btn-ai{width:100%;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.28);border-radius:var(--rsm);color:var(--accent);font-size:.9rem;font-weight:600;padding:.65rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:.45rem}
+    .btn-ai:hover:not(:disabled){background:rgba(59,130,246,.2)}
+    .btn-ai:disabled{opacity:.45;cursor:not-allowed}
+    .btn-ai svg{width:15px;height:15px}
+    .btn-http{width:100%;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--rsm);color:var(--green);font-size:.9rem;font-weight:600;padding:.65rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:.45rem}
+    .btn-http:hover:not(:disabled){background:rgba(16,185,129,.16)}
+    .btn-http:disabled{opacity:.45;cursor:not-allowed}
+    /* HTTP security panel */
+    #httpCard{display:none}
+    .hf-row{display:flex;align-items:flex-start;gap:.55rem;padding:.45rem .6rem;border-radius:var(--rsm);margin-bottom:.3rem;font-size:.83rem}
+    .hf-critical{background:rgba(239,68,68,.08);border-left:3px solid var(--red)}
+    .hf-high{background:rgba(239,68,68,.06);border-left:3px solid rgba(239,68,68,.6)}
+    .hf-medium{background:rgba(245,158,11,.07);border-left:3px solid var(--yellow)}
+    .hf-low{background:rgba(100,116,139,.07);border-left:3px solid var(--muted)}
+    .hf-ok{background:rgba(16,185,129,.06);border-left:3px solid var(--green)}
+    .hf-info{background:rgba(255,255,255,.03);border-left:3px solid var(--border2)}
+    .hf-icon{font-size:.9rem;flex-shrink:0;margin-top:.05rem}
+    .hf-title{font-weight:600;color:var(--text)}
+    .hf-detail{color:var(--muted2);font-size:.78rem;margin-top:.1rem}
 
-    /* Markdown-like styles inside aiOutput */
-    #aiOutput strong { color: var(--info); }
+    /* RANGE SCAN */
+    #rangeWrap{display:none}
+    .range-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem}
+    .range-stats{font-size:.82rem;color:var(--muted2)}
+    .range-table td:first-child{width:160px}
+    .host-status{font-size:.72rem;padding:.1rem .45rem;border-radius:99px;font-weight:600;white-space:nowrap}
+    .hs-scanning{background:rgba(59,130,246,.12);color:var(--accent);border:1px solid rgba(59,130,246,.25)}
+    .hs-done{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.22)}
+    .hs-empty{background:rgba(255,255,255,.05);color:var(--muted2);border:1px solid var(--border2)}
+    .hs-skip{background:rgba(239,68,68,.08);color:var(--red);border:1px solid rgba(239,68,68,.2)}
 
-    .spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid var(--border);
-      border-top-color: var(--info);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* SPINNER */
+    .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:rot .7s linear infinite;flex-shrink:0}
+    @keyframes rot{to{transform:rotate(360deg)}}
 
-    #statusMsg { color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; min-height: 1.2em; }
+    /* ═══ HISTORY ═══ */
+    .htool{display:flex;align-items:center;gap:.7rem;margin-bottom:.85rem;flex-wrap:wrap}
+    .hsearch{flex:1;min-width:150px;max-width:260px}
+    .hcount{font-size:.8rem;color:var(--muted2)}
+    .btn-ref{background:none;border:1px solid var(--border2);color:var(--muted2);border-radius:var(--rsm);padding:.3rem .7rem;font-size:.78rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.3rem}
+    .btn-ref svg{width:12px;height:12px}
+    .btn-ref:hover{color:var(--text);border-color:var(--muted2)}
+    .hempty{text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.9rem}
+
+    /* Compare bar */
+    .cmp-bar{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:var(--rsm);padding:.65rem 1rem;margin-bottom:.85rem;display:none;align-items:center;gap:.75rem;flex-wrap:wrap}
+    .cmp-bar.show{display:flex}
+    .cmp-info{font-size:.82rem;color:var(--muted2);flex:1}
+    .cmp-info strong{color:var(--text)}
+    .btn-cmp{background:var(--accent);color:#fff;border:none;border-radius:var(--rsm);padding:.35rem .85rem;font-size:.8rem;font-weight:600;cursor:pointer}
+    .btn-cmp:disabled{opacity:.4;cursor:not-allowed}
+    .btn-cmp-clear{background:none;border:1px solid var(--border2);color:var(--muted2);border-radius:var(--rsm);padding:.32rem .75rem;font-size:.78rem;cursor:pointer}
+
+    /* Compare result */
+    .cmp-result{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);margin-bottom:.9rem;overflow:hidden;display:none}
+    .cmp-result.show{display:block}
+    .cmp-result-head{padding:.85rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+    .cmp-result-title{font-weight:600;font-size:.92rem}
+    .cmp-section{padding:.7rem 1rem}
+    .cmp-section-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem}
+    .cmp-new{color:var(--green)}
+    .cmp-closed{color:var(--red)}
+    .cmp-same{color:var(--muted2)}
+    .cmp-port{display:inline-flex;align-items:center;gap:.3rem;font-size:.82rem;font-family:monospace;margin:.2rem;padding:.2rem .55rem;border-radius:6px}
+    .cmp-port-new{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.22)}
+    .cmp-port-closed{background:rgba(239,68,68,.08);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+    .cmp-port-same{background:rgba(255,255,255,.05);color:var(--muted2);border:1px solid var(--border2)}
+
+    /* History item */
+    .hitem{background:var(--card);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);margin-bottom:.5rem;overflow:hidden;transition:border-color .15s}
+    .ig{margin-bottom:.85rem}
+    .ig-head{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;cursor:pointer;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);transition:background .15s;flex-wrap:wrap;margin-bottom:.45rem}
+    .ig-head:hover{background:rgba(255,255,255,.05)}
+    .ig-chev{width:14px;height:14px;color:var(--muted2);transition:transform .2s;flex-shrink:0}
+    .ig.open .ig-chev{transform:rotate(180deg)}
+    .ig-ip{font-family:monospace;font-weight:700;font-size:.93rem}
+    .ig-hostname{font-size:.78rem;color:var(--muted2)}
+    .ig-cnt{background:var(--accent);color:#fff;font-size:.67rem;font-weight:700;padding:.08rem .42rem;border-radius:99px;white-space:nowrap}
+    .ig-ports{font-size:.75rem;color:var(--green)}
+    .ig-last{font-size:.72rem;color:var(--muted);margin-left:auto;text-align:right;line-height:1.4}
+    .ig-body{display:none;padding-left:.85rem;border-left:2px solid rgba(59,130,246,.18);margin-left:.5rem}
+    .ig.open .ig-body{display:block}
+    .hitem.cmp-selected{border-color:rgba(59,130,246,.5);box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+    .hhead{padding:.85rem 1rem;display:flex;align-items:flex-start;gap:.65rem;cursor:pointer;transition:background .15s;flex-wrap:wrap;user-select:none}
+    .hhead:hover{background:rgba(255,255,255,.04)}
+    .hchev{width:15px;height:15px;color:var(--muted2);transition:transform .2s;flex-shrink:0;margin-top:.25rem}
+    .hitem.open .hchev{transform:rotate(180deg)}
+    .hhost{font-weight:700;font-size:.92rem;font-family:monospace;color:var(--text)}
+    .hip{font-size:.76rem;color:var(--muted2);margin-top:.1rem}
+    .hmeta{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.15rem}
+    .hbadge{font-size:.7rem;font-weight:600;padding:.12rem .48rem;border-radius:99px;white-space:nowrap}
+    .hb-green{background:rgba(16,185,129,.12);color:var(--green);border:1px solid rgba(16,185,129,.25)}
+    .hb-blue{background:rgba(59,130,246,.12);color:var(--accent);border:1px solid rgba(59,130,246,.22)}
+    .hb-gray{background:rgba(255,255,255,.07);color:var(--muted2);border:1px solid var(--border2)}
+    .hb-os{background:rgba(16,185,129,.08);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+    .hb-dev{background:rgba(245,158,11,.08);color:var(--yellow);border:1px solid rgba(245,158,11,.2)}
+    .hb-red{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.25);font-size:.7rem;font-weight:600;padding:.12rem .48rem;border-radius:99px;white-space:nowrap}
+    .htime{font-size:.73rem;color:var(--muted);margin-left:auto;text-align:right;line-height:1.4;flex-shrink:0}
+    .hbody{border-top:1px solid rgba(255,255,255,.08)}
+    .hports{padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.06)}
+    .hai{padding:.85rem 1rem;font-size:.85rem;line-height:1.8;color:var(--muted2);border-bottom:1px solid rgba(255,255,255,.06);white-space:pre-wrap;word-break:break-word}
+    .hai h3{color:var(--accent);font-size:.92rem;margin:.8rem 0 .22rem;white-space:normal}
+    .hai strong{color:var(--text)}
+    .hai .li{padding-left:1rem;margin:.1rem 0;white-space:normal}
+    .hacts{padding:.55rem 1rem;display:flex;justify-content:flex-end;gap:.45rem;flex-wrap:wrap}
+    .btn-sm{font-size:.76rem;padding:.3rem .7rem;border-radius:6px;cursor:pointer;transition:background .15s;border:1px solid transparent}
+    .btn-sm-blue{background:rgba(59,130,246,.08);color:var(--accent);border-color:rgba(59,130,246,.22)}
+    .btn-sm-blue:hover{background:rgba(59,130,246,.18)}
+    .btn-sm-green{background:rgba(16,185,129,.07);color:var(--green);border-color:rgba(16,185,129,.22)}
+    .btn-sm-green:hover{background:rgba(16,185,129,.16)}
+    .btn-sm-green:disabled{opacity:.45;cursor:not-allowed}
+    .btn-sm-purple{background:rgba(139,92,246,.08);color:#a78bfa;border-color:rgba(139,92,246,.22)}
+    .btn-sm-purple:hover{background:rgba(139,92,246,.18)}
+    .btn-sm-red{background:rgba(239,68,68,.07);color:var(--red);border-color:rgba(239,68,68,.2)}
+    .btn-sm-red:hover{background:rgba(239,68,68,.15)}
+
+    /* ═══ SCHEDULES ═══ */
+    .sched-form{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:.7rem;align-items:end}
+    @media(max-width:640px){.sched-form{grid-template-columns:1fr 1fr}}
+    .sched-form .full{grid-column:1/-1}
+    .btn-add-sched{background:var(--accent);color:#fff;border:none;border-radius:var(--rsm);padding:.52rem .9rem;font-size:.88rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+    .btn-add-sched:hover{background:var(--accent2)}
+    .sched-list{margin-top:1rem}
+    .sched-item{background:var(--card);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);margin-bottom:.65rem;padding:.85rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+    .sched-item.disabled{opacity:.5}
+    .sched-host{font-family:monospace;font-weight:700;font-size:.9rem;color:var(--text);flex:1;min-width:120px}
+    .sched-meta{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+    .sched-status{font-size:.72rem;color:var(--muted);margin-left:auto;text-align:right;line-height:1.5}
+    .sched-actions{display:flex;gap:.4rem;flex-shrink:0}
+    .toggle-btn{font-size:.75rem;padding:.28rem .65rem;border-radius:6px;cursor:pointer;border:1px solid;transition:all .15s}
+    .toggle-on{background:rgba(16,185,129,.1);color:var(--green);border-color:rgba(16,185,129,.25)}
+    .toggle-on:hover{background:rgba(16,185,129,.2)}
+    .toggle-off{background:rgba(255,255,255,.05);color:var(--muted2);border-color:var(--border2)}
+    .toggle-off:hover{background:rgba(255,255,255,.1)}
+    .sched-empty{text-align:center;padding:2rem;color:var(--muted);font-size:.88rem}
   </style>
 </head>
 <body>
 
-<header>
-  <div style="display:flex;justify-content:flex-end;max-width:860px;margin:0 auto 0.5rem;">
-    <span style="color:var(--muted);font-size:0.85rem;align-self:center;margin-right:1rem;">
-      👤 {{ username }}
-    </span>
-    <a href="/logout" style="color:var(--muted);font-size:0.85rem;text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.8rem;">
-      Odhlásiť
-    </a>
+<nav>
+  <div class="nav-brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Port Scanner
   </div>
-  <h1>🔍 Port Scanner</h1>
-  <p>Skenuje porty a AI (Claude Opus 4.6) analyzuje bezpečnostné riziká</p>
-</header>
+  <div class="nav-right">
+    <div class="nav-user">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      {{ username }}
+    </div>
+    <a href="/logout" class="btn-logout">Odhlásiť</a>
+  </div>
+</nav>
 
-<!-- Formulár -->
-<div class="card">
-  <div class="form-grid">
-    <div class="full">
-      <label>Cieľový hostiteľ (IP alebo hostname)</label>
-      <input id="host" type="text" placeholder="napr. 192.168.1.1 alebo example.com" />
+<div class="wrap">
+
+  <div class="ip-bar">
+    <div class="ip-dot"></div>
+    <div class="ip-rows">
+      <div class="ip-row">
+        <span class="ip-label">Vaša IP:</span>
+        <span class="ip-val" id="myIp">načítavam...</span>
+      </div>
+      <div class="ip-row">
+        <span class="ip-label">IP skenera:</span>
+        <svg class="ip-srv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="5" rx="1"/><rect x="2" y="10" width="20" height="5" rx="1"/><circle cx="6" cy="5.5" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="12.5" r="1" fill="currentColor" stroke="none"/></svg>
+        <span class="ip-val ip-val-scanner" id="scannerIp">načítavam...</span>
+      </div>
     </div>
-    <div>
-      <label>Profil portov</label>
-      <select id="ports">
-        {% for p in profily %}
-        <option value="{{ p }}" {% if p == 'top100' %}selected{% endif %}>{{ p }}</option>
-        {% endfor %}
-        <option value="custom">Vlastný rozsah...</option>
-      </select>
-    </div>
-    <div id="customWrap" style="display:none;">
-      <label>Vlastné porty (napr. 22,80,443 alebo 1-1024)</label>
-      <input id="customPorts" type="text" placeholder="22,80,443,8080" />
-    </div>
-    <div>
-      <label>Vlákna (rýchlosť skenu)</label>
-      <input id="threads" type="number" value="100" min="10" max="500" />
-    </div>
+    <button class="btn-scanme" onclick="scanMyIp()">Skenovať moju IP</button>
   </div>
 
-  <div id="progressWrap">
-    <div id="progressBar"><div id="progressFill"></div></div>
-    <div id="progressLabel">0 / 0</div>
+  <div class="tabs">
+    <button class="tab active" id="tbScanner" onclick="switchTab('scanner')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+      Skener
+    </button>
+    <button class="tab" id="tbHistory" onclick="switchTab('history')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      História
+      <span class="tbadge" id="hbadge" style="display:none">0</span>
+    </button>
+    <button class="tab" id="tbSched" onclick="switchTab('sched')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Plán
+      <span class="tbadge" id="sbadge" style="display:none">0</span>
+    </button>
   </div>
 
-  <div id="statusMsg"></div>
-  <button id="btnScan" onclick="startScan()">▶ Spustiť sken</button>
-</div>
+  <!-- ═══ SCANNER ═══ -->
+  <div id="tabScanner">
+    <div class="card">
+      <div class="card-title">Konfigurácia skenu</div>
+      <div class="fgrid">
+        <div class="full">
+          <label>Cieľový hostiteľ / CIDR / rozsah</label>
+          <input id="host" type="text" placeholder="192.168.1.1 alebo 10.0.0.0/24 alebo 192.168.1.1-50" autocomplete="off"/>
+          <div id="rangeHint" style="display:none;font-size:.72rem;color:var(--accent);margin-top:.3rem">Detekovaný rozsah IP — bude skenovať viac hostov</div>
+        </div>
+        <div>
+          <label>Profil portov</label>
+          <select id="ports">
+            {% for p in profily %}
+            <option value="{{ p }}" {% if p == 'top100' %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+            <option value="custom">Vlastný rozsah...</option>
+          </select>
+        </div>
+        <div id="customWrap" style="display:none">
+          <label>Vlastné porty</label>
+          <input id="customPorts" type="text" placeholder="22,80,443"/>
+        </div>
+        <div>
+          <label>Vlákna</label>
+          <input id="threads" type="number" value="100" min="10" max="300"/>
+        </div>
+      </div>
+      <div id="progressWrap">
+        <div class="prog-track"><div id="progFill"></div></div>
+        <div id="progLabel">0 / 0</div>
+      </div>
+      <div id="statusMsg"></div>
+      <button class="btn-primary" id="btnScan" onclick="startScan()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span id="btnLabel">Spustiť sken</span>
+      </button>
+    </div>
 
-<!-- Výsledky portov -->
-<div class="card" id="portsWrap">
-  <div id="portCount"></div>
-  <table>
-    <thead>
-      <tr>
-        <th>Port</th>
-        <th>Stav</th>
-        <th>Služba</th>
-        <th>Banner</th>
-      </tr>
-    </thead>
-    <tbody id="portBody"></tbody>
-  </table>
-</div>
+    <!-- Single-host results -->
+    <div class="card" id="portsWrap">
+      <div id="portCount"></div>
+      <div id="tarpitWarn" style="display:none"></div>
+      <div id="osInfoBar" style="display:none;margin-bottom:.75rem;display:flex;flex-wrap:wrap;gap:.4rem;align-items:center"></div>
+      <div class="tscroll">
+        <table><thead><tr><th>Port</th><th>Stav</th><th>Služba</th><th>Banner</th></tr></thead>
+        <tbody id="portBody"></tbody></table>
+      </div>
+    </div>
 
-<!-- AI Analýza -->
-<div class="card" id="aiWrap">
-  <h2><span id="aiSpinner" class="spinner"></span>AI Bezpečnostná Analýza</h2>
-  <div id="aiOutput"></div>
-</div>
+    <!-- hidden elements kept for JS compatibility, not shown -->
+    <div id="btnAiWrap" style="display:none">
+      <button class="btn-http" id="btnHttp" onclick="httpCheckCurrentScan()"><span id="btnHttpLabel"></span></button>
+      <button class="btn-ai" id="btnAi" onclick="analyzeCurrentScan()"><span id="btnAiLabel"></span></button>
+    </div>
+    <div id="httpCard" style="display:none"><div id="httpOutput"></div></div>
+    <div id="aiCard" style="display:none"><div id="aiSpinner"></div><div id="aiOutput"></div></div>
+
+    <!-- Range scan results -->
+    <div class="card" id="rangeWrap">
+      <div class="range-header">
+        <div class="card-title" style="margin:0">Sken rozsahu</div>
+        <div class="range-stats" id="rangeStats"></div>
+      </div>
+      <div class="tscroll">
+        <table><thead><tr><th>Host</th><th>IP</th><th>Stav</th><th>Otv. portov</th><th></th></tr></thead>
+        <tbody id="rangeBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ HISTORY ═══ -->
+  <div id="tabHistory" style="display:none">
+    <!-- Compare bar -->
+    <div class="cmp-bar" id="cmpBar">
+      <div class="cmp-info" id="cmpInfo">Vyberte 2 záznamy na porovnanie</div>
+      <button class="btn-cmp" id="btnCmp" onclick="runCompare()" disabled>Porovnať</button>
+      <button class="btn-cmp-clear" onclick="clearCompare()">Zrušiť</button>
+    </div>
+    <!-- Compare result -->
+    <div class="cmp-result" id="cmpResult">
+      <div class="cmp-result-head">
+        <div class="cmp-result-title">Výsledok porovnania</div>
+        <button class="btn-sm-red btn-sm" onclick="document.getElementById('cmpResult').classList.remove('show')">Zavrieť</button>
+      </div>
+      <div id="cmpBody"></div>
+    </div>
+
+    <div class="htool">
+      <input class="hsearch" type="text" id="hsearch" placeholder="Filtrovať..." oninput="filterHist()"/>
+      <span class="hcount" id="hcount"></span>
+      <button class="btn-ref" onclick="loadHistory()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Obnoviť
+      </button>
+    </div>
+    <div id="hlist"></div>
+  </div>
+
+  <!-- ═══ SCHEDULES ═══ -->
+  <div id="tabSched" style="display:none">
+    <div class="card">
+      <div class="card-title">Nový plánovaný sken</div>
+      <div class="sched-form">
+        <div>
+          <label>Host / CIDR</label>
+          <input id="sHost" type="text" placeholder="192.168.1.1 alebo example.com"/>
+        </div>
+        <div>
+          <label>Profil portov</label>
+          <select id="sPorts">
+            {% for p in profily %}<option value="{{ p }}" {% if p == 'top100' %}selected{% endif %}>{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Interval</label>
+          <select id="sInterval">
+            <option value="1">každú hodinu</option>
+            <option value="6">každých 6 hodín</option>
+            <option value="12">každých 12 hodín</option>
+            <option value="24" selected>každý deň</option>
+            <option value="72">každé 3 dni</option>
+            <option value="168">každý týždeň</option>
+          </select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn-add-sched" onclick="createSchedule()">+ Pridať plán</button>
+        </div>
+      </div>
+    </div>
+    <div class="sched-list" id="schedList"></div>
+  </div>
+
+</div><!-- /wrap -->
 
 <script>
-  const portsSelect = document.getElementById('ports');
-  const customWrap  = document.getElementById('customWrap');
+// ── Helpers ───────────────────────────────────────────────────────────
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function md(t){
+  if(!t) return '';
+  return escHtml(t)
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^# (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^[-•*] (.+)$/gm,'<div class="li">• $1</div>')
+    .replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
+}
+function relTime(ts){
+  const d=new Date((ts||'').includes('Z')?ts:ts+'Z');
+  const s=Math.floor((Date.now()-d)/1000);
+  if(isNaN(s)||s<0) return ts;
+  if(s<60) return 'práve teraz';
+  if(s<3600) return Math.floor(s/60)+' min. späť';
+  if(s<86400) return Math.floor(s/3600)+' hod. späť';
+  return Math.floor(s/86400)+' dní späť';
+}
+function setStatus(msg,spin){
+  const el=document.getElementById('statusMsg');
+  el.innerHTML='';
+  if(spin){const s=document.createElement('span');s.className='spin';el.appendChild(s);}
+  el.appendChild(document.createTextNode(msg));
+}
+function isRange(h){
+  h=h.trim();
+  return /\/\d+$/.test(h)||(h.includes('-')&&/^\d{1,3}\.\d{1,3}\.\d{1,3}/.test(h));
+}
 
-  portsSelect.addEventListener('change', () => {
-    customWrap.style.display = portsSelect.value === 'custom' ? 'block' : 'none';
+// ── My IP ─────────────────────────────────────────────────────────────
+fetch('/api/myip').then(r=>r.json())
+  .then(d=>{document.getElementById('myIp').textContent=d.ip;})
+  .catch(()=>{document.getElementById('myIp').textContent='—';});
+
+fetch('/api/scannerip').then(r=>r.json())
+  .then(d=>{document.getElementById('scannerIp').textContent=d.ip;})
+  .catch(()=>{document.getElementById('scannerIp').textContent='—';});
+
+function scanMyIp(){
+  const ip=document.getElementById('myIp').textContent.trim();
+  if(!ip||ip==='načítavam...'||ip==='—') return;
+  document.getElementById('host').value=ip;
+  switchTab('scanner'); startScan();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────
+const TABS=['scanner','history','sched'];
+function switchTab(name){
+  document.getElementById('tabScanner').style.display=name==='scanner'?'block':'none';
+  document.getElementById('tabHistory').style.display=name==='history'?'block':'none';
+  document.getElementById('tabSched').style.display=name==='sched'?'block':'none';
+  TABS.forEach(t=>{
+    const id='tb'+t.charAt(0).toUpperCase()+t.slice(1);
+    const el=document.getElementById(id)||document.getElementById('tbSched');
+    if(t==='scanner') document.getElementById('tbScanner').classList.toggle('active',name==='scanner');
+    if(t==='history') document.getElementById('tbHistory').classList.toggle('active',name==='history');
+    if(t==='sched')   document.getElementById('tbSched').classList.toggle('active',name==='sched');
   });
+  if(name==='history') loadHistory();
+  if(name==='sched')   loadSchedules();
+}
 
-  let evtSource = null;
+document.getElementById('ports').addEventListener('change',function(){
+  document.getElementById('customWrap').style.display=this.value==='custom'?'':'none';
+});
+document.getElementById('host').addEventListener('input',function(){
+  document.getElementById('rangeHint').style.display=isRange(this.value)?'':'none';
+});
 
-  function setStatus(msg) {
-    document.getElementById('statusMsg').textContent = msg;
+// ── Scanner ───────────────────────────────────────────────────────────
+let evtSource=null, currentScanId=null, _httpAutoRan=false;
+
+function startScan(){
+  const host=document.getElementById('host').value.trim();
+  if(!host){alert('Zadajte cieľový hostiteľ.');return;}
+  let ports=document.getElementById('ports').value;
+  if(ports==='custom'){
+    ports=document.getElementById('customPorts').value.trim();
+    if(!ports){alert('Zadajte vlastné porty.');return;}
   }
+  const threads=document.getElementById('threads').value;
 
-  function startScan() {
-    const host = document.getElementById('host').value.trim();
-    if (!host) { alert('Zadajte cieľový hostiteľ.'); return; }
+  // reset
+  _tarpitActive=false; _httpAutoRan=false;
+  document.getElementById('portBody').innerHTML='';
+  document.getElementById('portsWrap').style.display='none';
+  const tw=document.getElementById('tarpitWarn'); if(tw){tw.innerHTML='';tw.style.display='none';}
+  const ob=document.getElementById('osInfoBar'); if(ob){ob.innerHTML='';ob.style.display='none';}
+  document.getElementById('httpCard').style.display='none';
+  document.getElementById('httpOutput').innerHTML='';
+  document.getElementById('btnHttp').style.display='';
+  document.getElementById('btnHttpLabel').textContent='HTTP/HTTPS Security Check';
+  document.getElementById('aiCard').style.display='none';
+  document.getElementById('aiOutput').innerHTML='';
+  document.getElementById('aiOutput')._raw='';
+  document.getElementById('btnAiWrap').style.display='none';
+  document.getElementById('rangeWrap').style.display='none';
+  document.getElementById('rangeBody').innerHTML='';
+  document.getElementById('progressWrap').style.display='block';
+  document.getElementById('progFill').style.width='0%';
+  document.getElementById('progLabel').textContent='Spúšťam...';
+  document.getElementById('btnScan').disabled=true;
+  document.getElementById('btnLabel').textContent='Skenujem...';
+  document.getElementById('btnAi').disabled=false;
+  document.getElementById('btnAiLabel').textContent='Analyzovať s AI (Claude Haiku)';
+  currentScanId=null;
+  setStatus('Pripájam...', true);
+  if(evtSource) evtSource.close();
 
-    let ports = portsSelect.value;
-    if (ports === 'custom') {
-      ports = document.getElementById('customPorts').value.trim();
-      if (!ports) { alert('Zadajte vlastné porty.'); return; }
+  if(isRange(host)){
+    startRangeScan(host, ports, threads);
+  } else {
+    startSingleScan(host, ports, threads);
+  }
+}
+
+function startSingleScan(host, ports, threads){
+  const url=`/scan?host=${encodeURIComponent(host)}&ports=${encodeURIComponent(ports)}&threads=${threads}`;
+  evtSource=new EventSource(url);
+
+  evtSource.addEventListener('status',e=>setStatus(JSON.parse(e.data).message,true));
+  evtSource.addEventListener('progress',e=>{
+    const d=JSON.parse(e.data);
+    const pct=Math.round(d.done/d.total*100);
+    document.getElementById('progFill').style.width=pct+'%';
+    document.getElementById('progLabel').textContent=d.done+' / '+d.total+' ('+pct+'%)';
+  });
+  evtSource.addEventListener('port',e=>{
+    const d=JSON.parse(e.data);
+    document.getElementById('portsWrap').style.display='';
+    addPortRow(document.getElementById('portBody'), d);
+  });
+  evtSource.addEventListener('scan_done',e=>{
+    const d=JSON.parse(e.data);
+    currentScanId=d.scan_id;
+    _tarpitActive=!!(d.tarpit&&d.tarpit.detected);
+    document.getElementById('portCount').textContent=d.open_count+' otvorených portov z '+d.total;
+    renderOsBar(d);
+    setStatus('Sken dokončený.', false); refreshBadge();
+  });
+  evtSource.addEventListener('http_security',e=>{
+    _httpAutoRan=true;
+    // results saved to DB and shown in history only
+  });
+  function done(){
+    if(evtSource){evtSource.close();evtSource=null;}
+    document.getElementById('btnScan').disabled=false;
+    document.getElementById('btnLabel').textContent='Spustiť sken';
+    setStatus('Sken dokončený.');
+  }
+  evtSource.addEventListener('done',done);
+  evtSource.addEventListener('error',e=>{
+    try{setStatus('Chyba: '+JSON.parse(e.data).message);}catch{setStatus('Chyba spojenia.');}
+    done();
+  });
+  evtSource.onerror=done;
+}
+
+function startRangeScan(host, ports, threads){
+  const url=`/scan-range?host=${encodeURIComponent(host)}&ports=${encodeURIComponent(ports)}&threads=${threads}`;
+  evtSource=new EventSource(url);
+  document.getElementById('rangeWrap').style.display='';
+  const tbody=document.getElementById('rangeBody');
+  const statsEl=document.getElementById('rangeStats');
+  const hostRows={};
+  let totalHosts=0, doneHosts=0, totalOpen=0;
+
+  evtSource.addEventListener('range_start',e=>{
+    const d=JSON.parse(e.data);
+    totalHosts=d.total_hosts;
+    setStatus(`Skenujem ${totalHosts} hostov...`,true);
+    statsEl.textContent=`0 / ${totalHosts} hostov`;
+  });
+  evtSource.addEventListener('range_host_start',e=>{
+    const d=JSON.parse(e.data);
+    const tr=tbody.insertRow();
+    tr.id='hr-'+d.host.replace(/\./g,'_');
+    const c1=tr.insertCell(); c1.className='pnum'; c1.textContent=d.host;
+    const c2=tr.insertCell(); c2.textContent=d.ip||'—';
+    const c3=tr.insertCell(); c3.innerHTML='<span class="host-status hs-scanning"><span class="spin" style="width:9px;height:9px;border-width:1.5px;margin-right:4px;vertical-align:middle"></span>skenujem</span>';
+    const c4=tr.insertCell(); c4.textContent='—';
+    const c5=tr.insertCell();
+    hostRows[d.host]={tr,c3,c4,c5};
+  });
+  evtSource.addEventListener('range_host_done',e=>{
+    const d=JSON.parse(e.data);
+    doneHosts++;
+    totalOpen+=d.open_count||0;
+    const pct=Math.round(doneHosts/totalHosts*100);
+    document.getElementById('progFill').style.width=pct+'%';
+    document.getElementById('progLabel').textContent=doneHosts+' / '+totalHosts+' hostov ('+pct+'%)';
+    statsEl.textContent=`${doneHosts} / ${totalHosts} dokončených · ${totalOpen} otvorených portov`;
+    if(d.skipped){
+      if(!hostRows[d.host]){
+        const tr=tbody.insertRow(); tr.id='hr-'+d.host.replace(/\./g,'_');
+        const c1=tr.insertCell();c1.className='pnum';c1.textContent=d.host;
+        const c2=tr.insertCell();c2.textContent='—';
+        const c3=tr.insertCell();const c4=tr.insertCell();const c5=tr.insertCell();
+        hostRows[d.host]={tr,c3,c4,c5};
+      }
+      hostRows[d.host].c3.innerHTML='<span class="host-status hs-skip">preskočený</span>';
+      hostRows[d.host].c4.textContent='—';
+    } else if(hostRows[d.host]){
+      const isOpen=d.open_count>0;
+      const cls=isOpen?'hs-done':'hs-empty';
+      let lbl=isOpen?`${d.open_count} portov`:'žiadne';
+      if(d.tarpit) lbl='tarpit?';
+      hostRows[d.host].c3.innerHTML=`<span class="host-status ${cls}">${lbl}</span>`;
+      hostRows[d.host].c4.textContent=d.open_count||'0';
+      const c5=hostRows[d.host].c5;
+
+      // HTTP security badge from range_host_done data
+      if(d.http_security&&d.http_security.length){
+        const counts={critical:0,high:0,medium:0,ok:0};
+        d.http_security.forEach(r=>(r.findings||[]).forEach(f=>{if(f.severity in counts)counts[f.severity]++;}));
+        const hb=document.createElement('span');
+        hb.style.cssText='font-size:.7rem;font-weight:600;padding:.1rem .38rem;border-radius:99px;margin-right:.3rem';
+        if(counts.critical>0){hb.style.cssText+='background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.25)';hb.textContent='🔴 '+counts.critical;}
+        else if(counts.high>0){hb.style.cssText+='background:rgba(239,68,68,.07);color:var(--red);border:1px solid rgba(239,68,68,.2)';hb.textContent='🟠';}
+        else if(counts.medium>0){hb.style.cssText+='background:rgba(245,158,11,.08);color:var(--yellow);border:1px solid rgba(245,158,11,.2)';hb.textContent='🟡';}
+        else{hb.style.cssText+='background:rgba(16,185,129,.07);color:var(--green);border:1px solid rgba(16,185,129,.2)';hb.textContent='✅';}
+        c5.appendChild(hb);
+      }
+
+      if(d.scan_id&&isOpen){
+        const btn=document.createElement('button');
+        btn.className='btn-sm btn-sm-blue'; btn.style.fontSize='.72rem'; btn.style.padding='.15rem .5rem';
+        btn.textContent='História'; btn.onclick=()=>{switchTab('history');};
+        c5.appendChild(btn);
+      }
+    }
+  });
+  evtSource.addEventListener('range_done',e=>{
+    const d=JSON.parse(e.data);
+    setStatus(`Hotovo — ${d.total_hosts} hostov, ${d.total_open} otvorených portov celkovo`);
+    document.getElementById('btnScan').disabled=false;
+    document.getElementById('btnLabel').textContent='Spustiť sken';
+    refreshBadge();
+    evtSource.close(); evtSource=null;
+  });
+  evtSource.onerror=()=>{
+    document.getElementById('btnScan').disabled=false;
+    document.getElementById('btnLabel').textContent='Spustiť sken';
+    if(evtSource){evtSource.close();evtSource=null;}
+  };
+}
+
+function renderTarpitWarn(tarpit){
+  const el=document.getElementById('tarpitWarn');
+  if(!el) return;
+  el.innerHTML=''; el.style.display='none';
+  if(!tarpit) return;
+  const colors={'high':'rgba(239,68,68,.12)','medium':'rgba(245,158,11,.1)','low':'rgba(100,116,139,.08)','none':null};
+  const borders={'high':'rgba(239,68,68,.35)','medium':'rgba(245,158,11,.3)','low':'rgba(100,116,139,.25)','none':null};
+  const textColors={'high':'var(--red)','medium':'var(--yellow)','low':'var(--muted2)','none':null};
+  const conf=tarpit.confidence||'none';
+  if(!tarpit.note) return;
+  el.style.cssText=`display:flex;align-items:flex-start;gap:.6rem;padding:.7rem .9rem;margin-bottom:.75rem;border-radius:var(--rsm);background:${colors[conf]};border:1px solid ${borders[conf]};color:${textColors[conf]}`;
+  el.innerHTML=`<svg style="flex-shrink:0;margin-top:.1rem" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+  const msg=document.createElement('div');
+  const title=document.createElement('div');
+  title.style.cssText='font-weight:700;font-size:.82rem;margin-bottom:.2rem';
+  title.textContent=tarpit.detected?'Detekovaný TCP tarpit':'Podozrivé správanie';
+  msg.appendChild(title);
+  const note=document.createElement('div');
+  note.style.cssText='font-size:.78rem;line-height:1.5;opacity:.9';
+  note.textContent=tarpit.note;
+  msg.appendChild(note);
+  if(tarpit.detected){
+    const tip=document.createElement('div');
+    tip.style.cssText='font-size:.74rem;margin-top:.35rem;opacity:.75';
+    tip.textContent='Tip: Porty bez odpovede sú označené ⚠ — firewall simuluje otvorený port (TCP tarpit), ale žiadna služba tam nebeží.';
+    msg.appendChild(tip);
+  }
+  el.appendChild(msg);
+}
+
+function renderOsBar(d){
+  renderTarpitWarn(d.tarpit);
+  const bar=document.getElementById('osInfoBar');
+  if(!bar) return;
+  bar.innerHTML='';
+  if(d.tarpit&&d.tarpit.detected){bar.style.display='none';return;}
+  if(!d.os_hint && !d.device_type) return;
+  bar.style.display='flex';
+  const confColor={'high':'var(--green)','medium':'var(--yellow)','low':'var(--muted2)'}[d.os_confidence||'low'];
+  if(d.os_hint && d.os_hint!=='Neznámy'){
+    const b=document.createElement('span');
+    b.style.cssText='display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:600;padding:.22rem .65rem;border-radius:99px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:var(--green)';
+    b.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+    b.appendChild(document.createTextNode(d.os_hint));
+    bar.appendChild(b);
+  }
+  if(d.device_type && d.device_type!=='Neznáme'){
+    const b=document.createElement('span');
+    b.style.cssText='display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:600;padding:.22rem .65rem;border-radius:99px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--accent)';
+    b.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="18" r="1" fill="currentColor" stroke="none"/></svg>';
+    b.appendChild(document.createTextNode(d.device_type));
+    bar.appendChild(b);
+  }
+  if(d.ttl){
+    const t=document.createElement('span');
+    t.style.cssText='font-size:.73rem;color:var(--muted);padding:.22rem .55rem;border-radius:99px;border:1px solid var(--border2)';
+    t.textContent='TTL '+d.ttl;
+    bar.appendChild(t);
+  }
+  const conf={'high':'Vysoká istota','medium':'Stredná istota','low':'Nízka istota'}[d.os_confidence||'low'];
+  const c=document.createElement('span');
+  c.style.cssText='font-size:.7rem;color:'+confColor+';margin-left:.2rem';
+  c.textContent='('+conf+')';
+  bar.appendChild(c);
+}
+
+let _tarpitActive=false;
+function addPortRow(tbody, d){
+  const tr=tbody.insertRow();
+  if(_tarpitActive&&!(d.banner||'').trim()) tr.style.opacity='.5';
+  const c1=tr.insertCell();c1.className='pnum';c1.textContent=d.port;
+  const c2=tr.insertCell();
+  if(_tarpitActive&&!(d.banner||'').trim()){
+    c2.innerHTML='<span class="badge-open" style="opacity:.5">OPEN?</span><span title="Podozrivý port — TCP tarpit (firewall simuluje otvorený port)" style="color:var(--yellow);margin-left:.3rem;font-size:.8rem">⚠</span>';
+  } else {
+    c2.innerHTML='<span class="badge-open">OPEN</span>';
+  }
+  const c3=tr.insertCell();c3.textContent=d.sluzba||'—';
+  const c4=tr.insertCell();c4.className='banner-c';c4.textContent=(d.banner||'—').replace(/[\r\n]+/g,' ');
+}
+
+document.getElementById('host').addEventListener('keydown',e=>{if(e.key==='Enter')startScan();});
+
+// ── HTTP Security Check ───────────────────────────────────────────────
+async function httpCheckCurrentScan(){
+  if(!currentScanId) return;
+  const btn=document.getElementById('btnHttp');
+  const lbl=document.getElementById('btnHttpLabel');
+  const card=document.getElementById('httpCard');
+  const out=document.getElementById('httpOutput');
+  const spin=document.getElementById('httpSpinner');
+  btn.disabled=true; lbl.textContent='Kontrolujem...'; spin.style.display='';
+  card.style.display='block'; out.innerHTML='';
+  try{
+    const r=await fetch('/api/http-check/'+currentScanId);
+    const d=await r.json();
+    if(d.error&&!d.results?.length){
+      out.textContent=d.error; lbl.textContent='HTTP/HTTPS Security Check';
+      btn.disabled=false; spin.style.display='none'; return;
+    }
+    renderHttpResults(out, d.results||[]);
+  }catch(e){
+    out.textContent='Chyba: '+e.message;
+  }
+  lbl.textContent='HTTP/HTTPS Security Check (hotovo)';
+  spin.style.display='none'; btn.disabled=false;
+}
+
+const _sevIcon={'critical':'🔴','high':'🟠','medium':'🟡','low':'🔵','ok':'✅','info':'ℹ️'};
+const _sevClass={'critical':'hf-critical','high':'hf-high','medium':'hf-medium','low':'hf-low','ok':'hf-ok','info':'hf-info'};
+
+function renderHttpResults(container, results){
+  container.innerHTML='';
+  if(!results.length){container.textContent='Žiadne HTTP/HTTPS porty nenájdené.';return;}
+  results.forEach(res=>{
+    // Port header
+    const ph=document.createElement('div');
+    ph.style.cssText='font-weight:700;font-size:.82rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.7px;margin:.75rem 0 .4rem;display:flex;align-items:center;gap:.5rem';
+    const scheme=res.port===443||res.port===8443?'HTTPS':'HTTP';
+    ph.textContent=scheme+' — port '+res.port;
+    if(res.tls&&res.tls.negotiated){
+      const tv=document.createElement('span');
+      tv.style.cssText='font-size:.72rem;font-weight:600;padding:.1rem .45rem;border-radius:99px;background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.2)';
+      tv.textContent=res.tls.negotiated;
+      ph.appendChild(tv);
+      if(res.tls.cipher){
+        const cv=document.createElement('span');
+        cv.style.cssText='font-size:.7rem;color:var(--muted);font-weight:400;font-family:monospace';
+        cv.textContent=res.tls.cipher;
+        ph.appendChild(cv);
+      }
+    }
+    if(res.server){
+      const sv=document.createElement('span');
+      sv.style.cssText='font-size:.7rem;color:var(--muted);margin-left:auto';
+      sv.textContent=res.server;
+      ph.appendChild(sv);
+    }
+    container.appendChild(ph);
+
+    // Cert info
+    if(res.cert&&res.cert.subject){
+      const ci=document.createElement('div');
+      ci.style.cssText='font-size:.76rem;color:var(--muted2);margin-bottom:.4rem;padding:.3rem .5rem;background:rgba(255,255,255,.03);border-radius:6px';
+      ci.textContent='Certifikát: '+res.cert.subject+(res.cert.issuer?' · Vydavateľ: '+res.cert.issuer:'')+(res.cert.expires?' · Platí do: '+res.cert.expires:'');
+      container.appendChild(ci);
     }
 
-    const threads = document.getElementById('threads').value;
-
-    // Reset UI
-    document.getElementById('portBody').innerHTML = '';
-    document.getElementById('aiOutput').textContent = '';
-    document.getElementById('portsWrap').style.display = 'none';
-    document.getElementById('aiWrap').style.display = 'none';
-    document.getElementById('progressWrap').style.display = 'block';
-    document.getElementById('progressFill').style.width = '0%';
-    document.getElementById('progressLabel').textContent = 'Spúšťam...';
-    document.getElementById('btnScan').disabled = true;
-    document.getElementById('aiSpinner').style.display = 'inline-block';
-
-    if (evtSource) evtSource.close();
-
-    const url = `/scan?host=${encodeURIComponent(host)}&ports=${encodeURIComponent(ports)}&threads=${threads}`;
-    evtSource = new EventSource(url);
-
-    evtSource.addEventListener('status', e => {
-      const d = JSON.parse(e.data);
-      setStatus(d.message);
+    // Findings
+    (res.findings||[]).forEach(f=>{
+      const row=document.createElement('div');
+      row.className='hf-row '+((_sevClass[f.severity])||'hf-info');
+      const ico=document.createElement('span'); ico.className='hf-icon';
+      ico.textContent=(_sevIcon[f.severity])||'•';
+      row.appendChild(ico);
+      const txt=document.createElement('div');
+      const t=document.createElement('div'); t.className='hf-title'; t.textContent=f.title;
+      const d=document.createElement('div'); d.className='hf-detail'; d.textContent=f.detail;
+      txt.appendChild(t); txt.appendChild(d); row.appendChild(txt);
+      container.appendChild(row);
     });
 
-    evtSource.addEventListener('progress', e => {
-      const d = JSON.parse(e.data);
-      const pct = Math.round(d.done / d.total * 100);
-      document.getElementById('progressFill').style.width = pct + '%';
-      document.getElementById('progressLabel').textContent = `${d.done} / ${d.total} portov (${pct}%)`;
-    });
+    if(res.error){
+      const er=document.createElement('div');
+      er.style.cssText='color:var(--red);font-size:.8rem;padding:.3rem 0';
+      er.textContent='Chyba: '+res.error;
+      container.appendChild(er);
+    }
+  });
+}
 
-    evtSource.addEventListener('port', e => {
-      const d = JSON.parse(e.data);
-      document.getElementById('portsWrap').style.display = 'block';
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="port-num">${d.port}</td>
-        <td><span class="badge-open">● OPEN</span></td>
-        <td>${d.sluzba}</td>
-        <td class="banner-cell" title="${d.banner || ''}">${d.banner || '—'}</td>
-      `;
-      document.getElementById('portBody').appendChild(tr);
-    });
+// ── AI ────────────────────────────────────────────────────────────────
+let aiSrc=null;
+function analyzeCurrentScan(){
+  if(!currentScanId) return;
+  streamAnalysis(currentScanId,
+    document.getElementById('aiOutput'),
+    document.getElementById('aiSpinner'),
+    document.getElementById('btnAi'),
+    document.getElementById('btnAiLabel'),
+    document.getElementById('aiCard')
+  );
+}
+function streamAnalysis(scanId,outEl,spinEl,btnEl,lblEl,cardEl){
+  if(aiSrc){aiSrc.close();aiSrc=null;}
+  outEl._raw=''; outEl.innerHTML='';
+  if(cardEl) cardEl.style.display='';
+  if(spinEl) spinEl.style.display='inline-block';
+  if(btnEl) btnEl.disabled=true;
+  if(lblEl) lblEl.textContent='Analyzujem...';
+  aiSrc=new EventSource('/analyze/'+scanId);
+  aiSrc.addEventListener('ai_chunk',e=>{
+    outEl._raw=(outEl._raw||'')+JSON.parse(e.data).text;
+    outEl.innerHTML=md(outEl._raw);
+  });
+  aiSrc.addEventListener('done',()=>{
+    aiSrc.close();aiSrc=null;
+    if(spinEl) spinEl.style.display='none';
+    if(btnEl) btnEl.disabled=true;
+    if(lblEl) lblEl.textContent='Analýza dokončená ✓';
+  });
+  aiSrc.addEventListener('error',()=>{
+    aiSrc.close();aiSrc=null;
+    if(spinEl) spinEl.style.display='none';
+    if(btnEl) btnEl.disabled=false;
+    if(lblEl) lblEl.textContent='Skúsiť znova';
+  });
+  aiSrc.onerror=()=>{if(aiSrc){aiSrc.close();aiSrc=null;} if(spinEl)spinEl.style.display='none';};
+}
 
-    evtSource.addEventListener('scan_done', e => {
-      const d = JSON.parse(e.data);
-      document.getElementById('portCount').textContent =
-        `Nájdených otvorených portov: ${d.open_count} z ${d.total}`;
-      setStatus('Sken dokončený. Spúšťam AI analýzu...');
-      document.getElementById('aiWrap').style.display = 'block';
-    });
+// ── History ───────────────────────────────────────────────────────────
+let histData=[], cmpSelected=[];
 
-    evtSource.addEventListener('ai_start', e => {
-      setStatus('Claude analyzuje...');
-    });
+async function loadHistory(){
+  const listEl=document.getElementById('hlist');
+  listEl.textContent='Načítavam...';
+  listEl.style.color='var(--muted)';
+  try{
+    const r=await fetch('/api/history');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    histData=await r.json();
+    listEl.style.color='';
+    renderHist(histData);
+    refreshBadge();
+  }catch(err){
+    listEl.textContent='Chyba: '+err.message;
+    listEl.style.color='var(--red)';
+  }
+}
 
-    evtSource.addEventListener('ai_chunk', e => {
-      const d = JSON.parse(e.data);
-      const out = document.getElementById('aiOutput');
-      out.textContent += d.text;
-      out.scrollTop = out.scrollHeight;
-    });
+function refreshBadge(){
+  fetch('/api/history').then(r=>r.json()).then(d=>{
+    histData=d;
+    const b=document.getElementById('hbadge');
+    b.textContent=d.length; b.style.display=d.length?'':'none';
+  }).catch(()=>{});
+}
 
-    evtSource.addEventListener('done', e => {
-      evtSource.close();
-      document.getElementById('btnScan').disabled = false;
-      document.getElementById('aiSpinner').style.display = 'none';
-      setStatus('Hotovo ✓');
-    });
+function filterHist(){
+  const q=document.getElementById('hsearch').value.toLowerCase();
+  renderHist(histData.filter(s=>
+    s.host.toLowerCase().includes(q)||s.ip.toLowerCase().includes(q)||(s.port_label||'').toLowerCase().includes(q)
+  ));
+}
 
-    evtSource.addEventListener('error', e => {
-      try {
-        const d = JSON.parse(e.data);
-        setStatus('Chyba: ' + d.message);
-      } catch {
-        setStatus('Spojenie prerušené.');
-      }
-      evtSource.close();
-      document.getElementById('btnScan').disabled = false;
-      document.getElementById('aiSpinner').style.display = 'none';
-    });
+function httpSeveritySummary(httpSecurity){
+  // Returns {critical,high,medium,ok} counts from http_security JSON string
+  if(!httpSecurity) return null;
+  let results; try{results=JSON.parse(httpSecurity);}catch{return null;}
+  const counts={critical:0,high:0,medium:0,ok:0};
+  results.forEach(r=>(r.findings||[]).forEach(f=>{
+    if(f.severity in counts) counts[f.severity]++;
+  }));
+  return counts;
+}
 
-    evtSource.onerror = () => {
-      // SSE sa uzavrel (normálne po done)
-      evtSource.close();
-      document.getElementById('btnScan').disabled = false;
-      document.getElementById('aiSpinner').style.display = 'none';
-    };
+function makeHistItem(scan, inGroup){
+  // inGroup=true → compact head (host/IP already in group header)
+  const ports=[]; try{ports.push(...JSON.parse(scan.open_ports||'[]'));}catch{}
+  const hasAi=scan.ai_analysis&&scan.ai_analysis.trim().length>0;
+  const httpCounts=httpSeveritySummary(scan.http_security);
+  const item=document.createElement('div');
+  item.className='hitem'; item.dataset.id=String(scan.id);
+
+  // ── HEAD ──────────────────────────────────────────────────────────────
+  const head=document.createElement('div'); head.className='hhead';
+  head.addEventListener('click',()=>toggleHitem(item));
+
+  const chev=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  chev.setAttribute('class','hchev'); chev.setAttribute('viewBox','0 0 24 24');
+  chev.setAttribute('fill','none'); chev.setAttribute('stroke','currentColor'); chev.setAttribute('stroke-width','2');
+  chev.innerHTML='<polyline points="6 9 12 15 18 9"/>'; head.appendChild(chev);
+
+  if(!inGroup){
+    // Full host block when not inside a group
+    const hostBlock=document.createElement('div');
+    const hostEl=document.createElement('div'); hostEl.className='hhost'; hostEl.textContent=scan.host; hostBlock.appendChild(hostEl);
+    if(scan.ip&&scan.ip!==scan.host){const ipEl=document.createElement('div');ipEl.className='hip';ipEl.textContent=scan.ip;hostBlock.appendChild(ipEl);}
+    head.appendChild(hostBlock);
   }
 
-  // Enter key
-  document.getElementById('host').addEventListener('keydown', e => {
-    if (e.key === 'Enter') startScan();
-  });
-</script>
+  // Badges
+  const meta=document.createElement('div'); meta.className='hmeta';
+  const b1=document.createElement('span');b1.className='hbadge hb-green';
+  b1.textContent=scan.total_scanned?scan.open_count+' / '+scan.total_scanned:scan.open_count+' portov';
+  meta.appendChild(b1);
+  const b2=document.createElement('span');b2.className='hbadge hb-blue';b2.textContent=scan.port_label||'custom';meta.appendChild(b2);
+  if(scan.os_hint&&scan.os_hint!=='Neznámy'&&!scan.os_hint.includes('tarpit')){
+    const bo=document.createElement('span');bo.className='hbadge hb-os';bo.textContent=scan.os_hint;meta.appendChild(bo);
+  }
+  if(httpCounts){
+    const hb=document.createElement('span');
+    if(httpCounts.critical>0){hb.className='hbadge hb-red';hb.textContent='🔴 '+httpCounts.critical+' krit.';}
+    else if(httpCounts.high>0){hb.className='hbadge hb-red';hb.textContent='🟠 '+httpCounts.high+' high';}
+    else if(httpCounts.medium>0){hb.className='hbadge';hb.style.cssText='background:rgba(245,158,11,.1);color:var(--yellow);border:1px solid rgba(245,158,11,.25);font-size:.7rem;font-weight:600;padding:.12rem .48rem;border-radius:99px';hb.textContent='🟡 HTTP';}
+    else{hb.className='hbadge hb-green';hb.textContent='✅ HTTP';}
+    meta.appendChild(hb);
+  }
+  if(hasAi){const b3=document.createElement('span');b3.className='hbadge hb-gray';b3.textContent='AI ✓';meta.appendChild(b3);}
+  head.appendChild(meta);
 
+  const timeEl=document.createElement('div'); timeEl.className='htime'; timeEl.textContent=relTime(scan.timestamp);
+  const sub=document.createElement('span');sub.style.cssText='font-size:.68rem;opacity:.5;display:block';sub.textContent=scan.timestamp;
+  timeEl.appendChild(sub); head.appendChild(timeEl);
+  item.appendChild(head);
+
+  // ── BODY ──────────────────────────────────────────────────────────────
+  const body=document.createElement('div'); body.className='hbody'; body.style.display='none';
+
+  // Port table
+  if(ports.length>0){
+    const portDiv=document.createElement('div');portDiv.className='hports';
+    const scr=document.createElement('div');scr.className='tscroll';
+    const tbl=document.createElement('table');
+    tbl.innerHTML='<thead><tr><th>Port</th><th>Stav</th><th>Služba</th><th>Banner</th></tr></thead>';
+    const tb=document.createElement('tbody');
+    ports.slice(0,15).forEach(p=>{
+      const tr=tb.insertRow();
+      const c1=tr.insertCell();c1.className='pnum';c1.textContent=p.port;
+      const c2=tr.insertCell();c2.innerHTML='<span class="badge-open">OPEN</span>';
+      const c3=tr.insertCell();c3.textContent=p.sluzba||'—';
+      const c4=tr.insertCell();c4.className='banner-c';c4.textContent=(p.banner||'—').replace(/[\r\n]+/g,' ');
+    });
+    if(ports.length>15){const tr=tb.insertRow();const td=tr.insertCell();td.colSpan=4;td.style.cssText='color:var(--muted);font-size:.78rem';td.textContent='... a ďalších '+(ports.length-15);}
+    tbl.appendChild(tb);scr.appendChild(tbl);portDiv.appendChild(scr);body.appendChild(portDiv);
+  }
+
+  // HTTP security findings
+  if(scan.http_security){
+    let httpRes; try{httpRes=JSON.parse(scan.http_security);}catch{httpRes=[];}
+    if(httpRes.length){
+      const httpDiv=document.createElement('div');
+      httpDiv.style.cssText='padding:.65rem 1rem;border-bottom:1px solid rgba(255,255,255,.06)';
+      const httpTitle=document.createElement('div');
+      httpTitle.style.cssText='font-size:.72rem;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.45rem';
+      httpTitle.textContent='HTTP/HTTPS Security';
+      httpDiv.appendChild(httpTitle);
+      renderHttpResults(httpDiv, httpRes);
+      body.appendChild(httpDiv);
+    }
+  }
+
+  // AI analysis
+  const aiDiv=document.createElement('div');aiDiv.id='hai-'+scan.id;
+  if(hasAi){aiDiv.className='hai';aiDiv.innerHTML=md(scan.ai_analysis);}
+  body.appendChild(aiDiv);
+
+  // Actions
+  const acts=document.createElement('div');acts.className='hacts';
+  const btnCmpItem=document.createElement('button');btnCmpItem.className='btn-sm btn-sm-purple';btnCmpItem.textContent='Porovnať';
+  btnCmpItem.addEventListener('click',()=>toggleCmpSelect(scan.id,item,btnCmpItem));
+  acts.appendChild(btnCmpItem);
+  if(!hasAi&&ports.length>0){
+    const btnAi=document.createElement('button');btnAi.className='btn-sm btn-sm-green';btnAi.id='hbtnai-'+scan.id;
+    btnAi.textContent='Analyzovať s AI';
+    btnAi.addEventListener('click',()=>analyzeHistScan(scan.id,aiDiv,btnAi,meta));
+    acts.appendChild(btnAi);
+  }
+  const btnRe=document.createElement('button');btnRe.className='btn-sm btn-sm-blue';btnRe.textContent='Zopakovať';
+  btnRe.addEventListener('click',()=>rescan(scan.host,scan.port_label||'top100'));
+  acts.appendChild(btnRe);
+  const btnDel=document.createElement('button');btnDel.className='btn-sm btn-sm-red';btnDel.textContent='Vymazať';
+  btnDel.addEventListener('click',()=>delScan(scan.id,item));
+  acts.appendChild(btnDel);
+
+  body.appendChild(acts);
+  item.appendChild(body);
+  return item;
+}
+
+function toggleHitem(item){
+  const body=item.querySelector('.hbody');
+  const isOpen=body.style.display==='block';
+  body.style.display=isOpen?'none':'block';
+  item.classList.toggle('open',!isOpen);
+}
+
+function makeIpGroup(ip, scans){
+  const g=document.createElement('div'); g.className='ig';
+  const newest=scans[0];
+
+  // ── Group header ───────────────────────────────────────────────────────
+  const head=document.createElement('div'); head.className='ig-head';
+  head.addEventListener('click',()=>g.classList.toggle('open'));
+
+  const chev=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  chev.setAttribute('class','ig-chev'); chev.setAttribute('viewBox','0 0 24 24');
+  chev.setAttribute('fill','none'); chev.setAttribute('stroke','currentColor'); chev.setAttribute('stroke-width','2');
+  chev.innerHTML='<polyline points="6 9 12 15 18 9"/>'; head.appendChild(chev);
+
+  // IP + hostname
+  const ipEl=document.createElement('span'); ipEl.className='ig-ip'; ipEl.textContent=ip; head.appendChild(ipEl);
+  const hosts=[...new Set(scans.map(s=>s.host))].filter(h=>h!==ip);
+  if(hosts.length){const hEl=document.createElement('span');hEl.className='ig-hostname';hEl.textContent=hosts[0];head.appendChild(hEl);}
+
+  // Scan count badge
+  const cnt=document.createElement('span'); cnt.className='ig-cnt';
+  cnt.textContent=scans.length+(scans.length===1?' sken':' skenov'); head.appendChild(cnt);
+
+  // Port count from newest scan
+  const portSummary=document.createElement('span'); portSummary.className='ig-ports';
+  if(newest.total_scanned){
+    portSummary.textContent=newest.open_count+' / '+newest.total_scanned+' portov';
+  } else {
+    portSummary.textContent=newest.open_count+' otvorených';
+  }
+  head.appendChild(portSummary);
+
+  // OS/device from newest scan
+  if(newest.os_hint&&newest.os_hint!=='Neznámy'&&!newest.os_hint.includes('tarpit')){
+    const os=document.createElement('span');
+    os.style.cssText='font-size:.72rem;font-weight:600;padding:.1rem .42rem;border-radius:99px;background:rgba(16,185,129,.08);color:var(--green);border:1px solid rgba(16,185,129,.18)';
+    os.textContent=newest.os_hint; head.appendChild(os);
+  }
+  if(newest.device_type&&newest.device_type!=='Neznáme'&&!newest.device_type.includes('tarpit')){
+    const dt=document.createElement('span');
+    dt.style.cssText='font-size:.72rem;font-weight:600;padding:.1rem .42rem;border-radius:99px;background:rgba(245,158,11,.07);color:var(--yellow);border:1px solid rgba(245,158,11,.18)';
+    dt.textContent=newest.device_type; head.appendChild(dt);
+  }
+
+  // HTTP severity — použijem najnovší sken ktorý má http_security dáta
+  const newestWithHttp=scans.find(s=>s.http_security);
+  const worstHttp=newestWithHttp?httpSeveritySummary(newestWithHttp.http_security):null;
+  if(worstHttp){
+    const hb=document.createElement('span');
+    if(worstHttp.critical>0){hb.className='ig-cnt';hb.style.background='var(--red)';hb.textContent='🔴 '+worstHttp.critical+' krit.';}
+    else if(worstHttp.high>0){hb.className='ig-cnt';hb.style.background='rgba(239,68,68,.7)';hb.textContent='🟠 HTTP high';}
+    else if(worstHttp.medium>0){hb.className='ig-cnt';hb.style.cssText='background:var(--yellow);color:#000;font-size:.67rem;font-weight:700;padding:.08rem .42rem;border-radius:99px';hb.textContent='🟡 HTTP';}
+    else{hb.className='ig-cnt';hb.style.background='var(--green)';hb.textContent='✅ HTTP';}
+    head.appendChild(hb);
+  }
+
+  // Last scan time (right side)
+  const lastEl=document.createElement('div'); lastEl.className='ig-last';
+  lastEl.textContent=relTime(newest.timestamp);
+  const subEl=document.createElement('span');subEl.style.cssText='font-size:.65rem;opacity:.5;display:block';
+  subEl.textContent=newest.timestamp; lastEl.appendChild(subEl); head.appendChild(lastEl);
+
+  g.appendChild(head);
+
+  // ── Group body — individual scans ──────────────────────────────────────
+  const body=document.createElement('div'); body.className='ig-body';
+  scans.forEach(scan=>{
+    try{body.appendChild(makeHistItem(scan, true));} // inGroup=true → compact head
+    catch(e){console.error('ig scan error id='+scan.id,e);}
+  });
+  g.appendChild(body);
+  return g;
+}
+
+function renderHist(scans){
+  const listEl=document.getElementById('hlist'); listEl.innerHTML='';
+  if(!scans.length){listEl.innerHTML='<div class="hempty">Žiadna história skenov</div>';document.getElementById('hcount').textContent='0 záznamov';return;}
+
+  // Group by resolved IP
+  const groups=new Map();
+  scans.forEach(s=>{
+    const key=s.ip||s.host;
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(s);
+  });
+
+  document.getElementById('hcount').textContent=scans.length+' skenov · '+groups.size+' hostov';
+
+  groups.forEach((groupScans,ip)=>{
+    listEl.appendChild(makeIpGroup(ip,groupScans));
+  });
+}
+
+// Compare
+function toggleCmpSelect(scanId, item, btn){
+  const idx=cmpSelected.indexOf(scanId);
+  if(idx>=0){
+    cmpSelected.splice(idx,1); item.classList.remove('cmp-selected'); btn.textContent='Porovnať';
+  } else {
+    if(cmpSelected.length>=2){alert('Maximálne 2 záznamy.');return;}
+    cmpSelected.push(scanId); item.classList.add('cmp-selected'); btn.textContent='Odznačiť';
+  }
+  updateCmpBar();
+}
+function updateCmpBar(){
+  const bar=document.getElementById('cmpBar');
+  const info=document.getElementById('cmpInfo');
+  const btn=document.getElementById('btnCmp');
+  if(cmpSelected.length===0){bar.classList.remove('show');return;}
+  bar.classList.add('show');
+  if(cmpSelected.length===1){info.innerHTML='Vybratý <strong>1</strong> záznam — vyberte ešte 1';btn.disabled=true;}
+  else{info.innerHTML='Vybraté <strong>2</strong> záznamy — pripravené na porovnanie';btn.disabled=false;}
+}
+function clearCompare(){
+  cmpSelected=[];
+  document.querySelectorAll('.hitem.cmp-selected').forEach(el=>{
+    el.classList.remove('cmp-selected');
+    el.querySelector('.btn-sm-purple').textContent='Porovnať';
+  });
+  document.getElementById('cmpBar').classList.remove('show');
+  document.getElementById('cmpResult').classList.remove('show');
+}
+async function runCompare(){
+  if(cmpSelected.length!==2) return;
+  const [a,b]=cmpSelected;
+  const r=await fetch(`/api/compare?a=${a}&b=${b}`);
+  const d=await r.json();
+  if(d.error){alert('Chyba: '+d.error);return;}
+  renderCompare(d);
+}
+function renderCompare(d){
+  const body=document.getElementById('cmpBody');
+  body.innerHTML='';
+  // header info
+  const info=document.createElement('div');
+  info.style.cssText='display:flex;gap:1rem;padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-wrap:wrap';
+  info.innerHTML=`<div style="flex:1"><div style="font-size:.72rem;color:var(--muted2)">Sken A (starší)</div><div style="font-family:monospace;font-weight:700">${escHtml(d.scan_a.host)}</div><div style="font-size:.75rem;color:var(--muted)">${d.scan_a.timestamp} · ${d.scan_a.open_count} portov</div></div>`+
+  `<div style="flex:1"><div style="font-size:.72rem;color:var(--muted2)">Sken B (novší)</div><div style="font-family:monospace;font-weight:700">${escHtml(d.scan_b.host)}</div><div style="font-size:.75rem;color:var(--muted)">${d.scan_b.timestamp} · ${d.scan_b.open_count} portov</div></div>`;
+  body.appendChild(info);
+
+  function portSpans(ports, cls){
+    if(!ports.length) return '<span style="color:var(--muted);font-size:.8rem">—</span>';
+    return ports.map(p=>`<span class="cmp-port ${cls}">${p.port} <small>${escHtml(p.sluzba||'')}</small></span>`).join('');
+  }
+  function section(title, ports, cls, titleCls){
+    const div=document.createElement('div');div.className='cmp-section';
+    div.innerHTML=`<div class="cmp-section-title ${titleCls}">${title} <span style="background:rgba(255,255,255,.07);padding:.05rem .4rem;border-radius:99px;font-size:.7rem">${ports.length}</span></div><div>${portSpans(ports,cls)}</div>`;
+    body.appendChild(div);
+  }
+  section('Nové porty (otvorené v B)',d.new_ports,'cmp-port-new','cmp-new');
+  section('Zatvorené porty (boli v A)',d.closed_ports,'cmp-port-closed','cmp-closed');
+  section('Nezmenené porty',d.unchanged,'cmp-port-same','cmp-same');
+  document.getElementById('cmpResult').classList.add('show');
+  document.getElementById('cmpResult').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function analyzeHistScan(scanId,outEl,btn,metaEl){
+  btn.disabled=true; btn.textContent='Analyzujem...';
+  outEl.className='hai';
+  const src=new EventSource('/analyze/'+scanId); let raw='';
+  src.addEventListener('ai_chunk',e=>{raw+=JSON.parse(e.data).text;outEl.innerHTML=md(raw);});
+  src.addEventListener('done',()=>{
+    src.close(); btn.textContent='Hotovo ✓';
+    const b=document.createElement('span');b.className='hbadge hb-gray';b.textContent='AI ✓';metaEl.appendChild(b);
+  });
+  src.addEventListener('error',()=>{src.close();btn.disabled=false;btn.textContent='Skúsiť znova';});
+  src.onerror=()=>{src.close();if(btn.textContent==='Analyzujem...'){btn.disabled=false;btn.textContent='Analyzovať s AI';}};
+}
+
+function rescan(host,portLabel){
+  document.getElementById('host').value=host;
+  const sel=document.getElementById('ports');
+  let found=false;
+  for(const opt of sel.options){if(opt.value===portLabel){sel.value=portLabel;found=true;break;}}
+  if(!found){sel.value='custom';document.getElementById('customPorts').value=portLabel;document.getElementById('customWrap').style.display='';}
+  switchTab('scanner'); startScan();
+}
+
+async function delScan(id,itemEl){
+  if(!confirm('Vymazať tento záznam?')) return;
+  await fetch('/api/history/'+id,{method:'DELETE'});
+  histData=histData.filter(s=>s.id!==id);
+  itemEl.remove();
+  document.getElementById('hcount').textContent=histData.length+' záznamov';
+  refreshBadge();
+}
+
+// ── Schedules ─────────────────────────────────────────────────────────
+let schedData=[];
+
+async function loadSchedules(){
+  const listEl=document.getElementById('schedList');
+  listEl.textContent='Načítavam...';
+  try{
+    const r=await fetch('/api/schedules');
+    schedData=await r.json();
+    renderSchedules(schedData);
+    const b=document.getElementById('sbadge');
+    b.textContent=schedData.filter(s=>s.enabled).length;
+    b.style.display=schedData.length?'':'none';
+  }catch(e){listEl.textContent='Chyba: '+e.message;}
+}
+
+async function createSchedule(){
+  const host=document.getElementById('sHost').value.trim();
+  if(!host){alert('Zadajte host.');return;}
+  const r=await fetch('/api/schedules',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      host,
+      port_label:document.getElementById('sPorts').value,
+      interval_hours:parseInt(document.getElementById('sInterval').value),
+      threads:100,
+    }),
+  });
+  if(r.ok){document.getElementById('sHost').value='';loadSchedules();}
+  else{const d=await r.json();alert('Chyba: '+d.error);}
+}
+
+function renderSchedules(list){
+  const listEl=document.getElementById('schedList');
+  if(!list.length){listEl.innerHTML='<div class="sched-empty">Žiadne naplánované skeny.<br>Pridajte prvý plán vyššie.</div>';return;}
+  listEl.innerHTML='';
+  list.forEach(s=>{
+    const item=document.createElement('div');
+    item.className='sched-item'+(s.enabled?'':' disabled');
+    item.dataset.id=s.id;
+
+    const hostEl=document.createElement('div');hostEl.className='sched-host';hostEl.textContent=s.host;item.appendChild(hostEl);
+
+    const meta=document.createElement('div');meta.className='sched-meta';
+    meta.innerHTML=`<span class="hbadge hb-blue">${escHtml(s.port_label)}</span>`+
+      `<span class="hbadge hb-gray">každých ${s.interval_hours}h</span>`;
+    item.appendChild(meta);
+
+    const statusEl=document.createElement('div');statusEl.className='sched-status';
+    statusEl.innerHTML=(s.last_run?`Posledný: ${relTime(s.last_run)}<br>`:'Ešte nespustený<br>')+
+      `<span style="opacity:.6">Ďalší: ${s.next_run}</span>`+
+      (s.last_status?`<br><span style="font-size:.68rem;color:${s.last_status.startsWith('OK')?'var(--green)':'var(--red)'}">${escHtml(s.last_status)}</span>`:'');
+    item.appendChild(statusEl);
+
+    const acts=document.createElement('div');acts.className='sched-actions';
+
+    const runBtn=document.createElement('button');runBtn.className='btn-sm btn-sm-blue';runBtn.textContent='▶';runBtn.title='Spustiť teraz';
+    runBtn.addEventListener('click',async()=>{
+      runBtn.disabled=true;runBtn.textContent='...';
+      await fetch(`/api/schedules/${s.id}/run`,{method:'POST'});
+      runBtn.textContent='▶';runBtn.disabled=false;
+      loadSchedules(); refreshBadge();
+    });
+    acts.appendChild(runBtn);
+
+    const togBtn=document.createElement('button');
+    togBtn.className='toggle-btn '+(s.enabled?'toggle-on':'toggle-off');
+    togBtn.textContent=s.enabled?'Aktívny':'Neaktívny';
+    togBtn.addEventListener('click',async()=>{
+      await fetch(`/api/schedules/${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!s.enabled})});
+      loadSchedules();
+    });
+    acts.appendChild(togBtn);
+
+    const delBtn=document.createElement('button');delBtn.className='btn-sm btn-sm-red';delBtn.textContent='Zmazať';
+    delBtn.addEventListener('click',async()=>{
+      if(!confirm('Zmazať plán?')) return;
+      await fetch(`/api/schedules/${s.id}`,{method:'DELETE'});
+      loadSchedules();
+    });
+    acts.appendChild(delBtn);
+
+    item.appendChild(acts);
+    listEl.appendChild(item);
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+refreshBadge();
+</script>
 </body>
 </html>

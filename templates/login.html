@@ -8,21 +8,23 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --border: #30363d;
-      --accent: #238636;
-      --accent-hover: #2ea043;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --error: #f85149;
-      --info: #58a6ff;
+      --bg:     #080d18;
+      --bg2:    #0e1524;
+      --card:   #111827;
+      --border: rgba(255,255,255,0.08);
+      --border2:rgba(255,255,255,0.14);
+      --accent: #3b82f6;
+      --accent2:#2563eb;
+      --text:   #f1f5f9;
+      --muted:  #64748b;
+      --muted2: #94a3b8;
+      --red:    #ef4444;
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -30,120 +32,154 @@
       padding: 1rem;
     }
 
-    .login-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
+    /* subtle grid background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .box {
+      position: relative; z-index: 1;
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
       padding: 2.5rem 2rem;
-      width: 100%;
-      max-width: 380px;
+      width: 100%; max-width: 360px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
     }
 
-    .login-box h1 {
-      text-align: center;
-      font-size: 1.4rem;
-      margin-bottom: 0.3rem;
+    .logo {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0.6rem; margin-bottom: 1.75rem;
     }
+    .logo-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 20px rgba(59,130,246,0.3);
+    }
+    .logo-icon svg { width: 22px; height: 22px; color: #fff; }
+    .logo-text { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.3px; }
 
-    .login-box p.sub {
+    h1 { text-align: center; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .sub { text-align: center; color: var(--muted2); font-size: 0.82rem; margin-bottom: 1.75rem; }
+
+    .error-msg {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 8px;
+      color: var(--red);
+      font-size: 0.83rem;
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 1.25rem;
       text-align: center;
-      color: var(--muted);
-      font-size: 0.85rem;
-      margin-bottom: 2rem;
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
     }
+    .error-msg svg { width: 14px; height: 14px; flex-shrink: 0; }
 
     label {
       display: block;
-      font-size: 0.8rem;
-      color: var(--muted);
+      font-size: 0.78rem; color: var(--muted2); font-weight: 500;
       margin-bottom: 0.3rem;
     }
 
-    input[type="text"],
-    input[type="password"] {
+    .input-wrap {
+      position: relative; margin-bottom: 1rem;
+    }
+    .input-icon {
+      position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+      color: var(--muted); pointer-events: none;
+      width: 15px; height: 15px;
+    }
+    input {
       width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
       color: var(--text);
-      padding: 0.6rem 0.8rem;
-      font-size: 0.95rem;
-      margin-bottom: 1rem;
+      padding: 0.6rem 0.8rem 0.6rem 2.25rem;
+      font-size: 0.93rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-
     input:focus {
-      outline: 2px solid var(--info);
-      border-color: var(--info);
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
     }
+    input::placeholder { color: var(--muted); }
 
-    button {
-      width: 100%;
-      background: var(--accent);
-      border: none;
-      border-radius: 6px;
-      color: #fff;
-      font-size: 1rem;
+    button[type="submit"] {
+      width: 100%; margin-top: 0.5rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; border-radius: 8px;
+      color: #fff; font-size: 0.95rem; font-weight: 600;
       padding: 0.7rem;
       cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 0.5rem;
+      transition: opacity 0.15s, transform 0.1s;
+      box-shadow: 0 4px 14px rgba(59,130,246,0.3);
     }
+    button[type="submit"]:hover  { opacity: 0.9; }
+    button[type="submit"]:active { transform: scale(0.99); }
 
-    button:hover { background: var(--accent-hover); }
-
-    .error-msg {
-      background: rgba(248, 81, 73, 0.1);
-      border: 1px solid var(--error);
-      border-radius: 6px;
-      color: var(--error);
-      font-size: 0.85rem;
-      padding: 0.6rem 0.8rem;
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-
-    .lock-icon {
-      text-align: center;
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
+    .footer {
+      text-align: center; margin-top: 1.5rem;
+      font-size: 0.75rem; color: var(--muted);
     }
   </style>
 </head>
 <body>
 
-<div class="login-box">
-  <div class="lock-icon">🔐</div>
-  <h1>Port Scanner</h1>
+<div class="box">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+    </div>
+    <span class="logo-text">Port Scanner</span>
+  </div>
+
+  <h1>Vitajte späť</h1>
   <p class="sub">Prihláste sa pre prístup k nástroju</p>
 
   {% if error %}
-  <div class="error-msg">{{ error }}</div>
+  <div class="error-msg">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    {{ error }}
+  </div>
   {% endif %}
 
   <form method="POST">
     <label for="username">Používateľské meno</label>
-    <input
-      type="text"
-      id="username"
-      name="username"
-      placeholder="admin"
-      autocomplete="username"
-      autofocus
-      required
-    />
+    <div class="input-wrap">
+      <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      <input type="text" id="username" name="username"
+        placeholder="admin" autocomplete="username" autofocus required />
+    </div>
 
     <label for="password">Heslo</label>
-    <input
-      type="password"
-      id="password"
-      name="password"
-      placeholder="••••••••"
-      autocomplete="current-password"
-      required
-    />
+    <div class="input-wrap">
+      <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <input type="password" id="password" name="password"
+        placeholder="••••••••" autocomplete="current-password" required />
+    </div>
 
     <button type="submit">Prihlásiť sa</button>
   </form>
+
+  <div class="footer">Port Scanner · AI analýza bezpečnosti</div>
 </div>
 
 </body>
