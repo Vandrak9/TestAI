@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0] – 2026-03-07
+### Opravené
+- **HTTPS infinite redirect**: odstránený fixed `Host` header → urllib nastaví správny host pre každý redirect
+- Eliminuje chybu "infinite loop" pri skenovaní google.sk a podobných serverov
+- **HTTP redirect detekcia** spresnená na 3 prípady:
+  - `Location: https://` → ✅ správny redirect
+  - `Location: http://` → 🟡 redirect ale nie na HTTPS
+  - Žiadny `Location` → 🟡 server slúži obsah priamo na HTTP
+
 ## [0.4.9] – 2026-03-07
 ### Opravené
 - **HTTP/HTTPS rozdielna stratégia redirectov**:
