@@ -574,13 +574,12 @@ def check_http_security(host: str, port: int) -> dict:
 
         if not use_tls:
             # HTTP port: NEsledujeme redirect — čítame Location z 301 odpovede
-            # Posielame Host hlavičku aby server vrátil správny redirect
             class _NoRedirect(urllib.request.HTTPRedirectHandler):
                 def redirect_request(self, *a, **kw):
                     return None
             req = urllib.request.Request(
                 f"http://{host}:{port}/",
-                headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0", "Host": host},
+                headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0"},
                 method="GET",
             )
             opener = urllib.request.build_opener(
@@ -595,18 +594,24 @@ def check_http_security(host: str, port: int) -> dict:
                 for k, v in e.headers.items():
                     resp_headers[k.lower()] = v
         else:
-            # HTTPS port: sledujeme redirecty (max 5) — čítame finálne hlavičky
-            # (napr. HSTS je na finálnej stránke, nie na intermediate redirect)
+            # HTTPS port: sledujeme redirecty — čítame finálne hlavičky (HSTS, CSP...)
+            # Host header NEnastavujeme manuálne — urllib ho nastaví správne
+            # pre každý redirect (inak vzniká infinite loop pri cross-domain redirectoch)
             req = urllib.request.Request(
                 f"https://{host}:{port}/",
-                headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0", "Host": host},
+                headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0"},
                 method="GET",
             )
             opener = urllib.request.build_opener(
                 urllib.request.HTTPSHandler(context=ctx_h),
             )
-            with opener.open(req, timeout=8) as r:
-                for k, v in r.headers.items():
+            try:
+                with opener.open(req, timeout=8) as r:
+                    for k, v in r.headers.items():
+                        resp_headers[k.lower()] = v
+            except urllib.error.HTTPError as e:
+                # Aj redirect error môže obsahovať užitočné hlavičky
+                for k, v in e.headers.items():
                     resp_headers[k.lower()] = v
 
         # Server header — version disclosure
@@ -648,9 +653,16 @@ def check_http_security(host: str, port: int) -> dict:
             if location.startswith("https://"):
                 findings.append({"severity": "ok", "title": "HTTP → HTTPS redirect",
                     "detail": f"Presmerováva na {location}"})
-            else:
+            elif location.startswith("http://"):
                 findings.append({"severity": "medium", "title": "Chýba HTTP → HTTPS redirect",
-                    "detail": "Server nepresmeroava na HTTPS"})
+                    "detail": f"Server presmerúva na HTTP (nie HTTPS): {location}"})
+            elif location:
+                findings.append({"severity": "medium", "title": "Chýba HTTP → HTTPS redirect",
+                    "detail": f"Presmerúva na neznámy cieľ: {location}"})
+            else:
+                # Žiadny Location header — server slúži obsah priamo na HTTP
+                findings.append({"severity": "medium", "title": "HTTP dostupné bez redirectu",
+                    "detail": "Server slúži obsah priamo na HTTP (bez presmerovaní na HTTPS)"})
 
     except Exception as e:
         findings.append({"severity": "info", "title": "HTTP požiadavka zlyhala",
