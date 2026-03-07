@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1] – 2026-03-07 (infraštruktúra)
+### Bezpečnosť servera
+- **fail2ban** – SSH ochrana: ban po 3 neúspešných pokusoch, trvanie 24 hodín
+- Aktívny útočník `188.166.26.201` okamžite zablokovaný
+- Config: `/etc/fail2ban/jail.local`
+
 ## [0.4.0] – 2026-03-07
 ### Pridané
 - **HTTPS** – nginx reverse proxy + Let's Encrypt TLS certifikát (auto-obnova)
