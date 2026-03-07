@@ -573,11 +573,15 @@ def check_http_security(host: str, port: int) -> dict:
             headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0"},
             method="GET",
         )
-        ctx_h = ssl.create_default_context() if use_tls else None
-        if ctx_h:
-            ctx_h.check_hostname = False
-            ctx_h.verify_mode = ssl.CERT_NONE
-        with urllib.request.urlopen(req, timeout=5, context=ctx_h) as r:
+        # Vždy použijeme custom SSL kontext aby HTTPS redirecty (napr. 80→443)
+        # fungovali bez chyby IP/cert mismatch pri sledovaní presmerovaní
+        ctx_h = ssl.create_default_context()
+        ctx_h.check_hostname = False
+        ctx_h.verify_mode = ssl.CERT_NONE
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPSHandler(context=ctx_h)
+        )
+        with opener.open(req, timeout=5) as r:
             for k, v in r.headers.items():
                 resp_headers[k.lower()] = v
 
@@ -1161,18 +1165,36 @@ def analyze(scan_id):
             f"- Port {p['port']} ({p['sluzba']})" + (f" | banner: {p['banner']}" if p.get("banner") else "")
             for p in ports
         )
+
+        # Zahrň výsledky HTTP security checku do promptu
+        http_security_summary = ""
+        try:
+            http_data = json.loads(scan["http_security"] or "[]")
+            if http_data:
+                lines = []
+                for r in http_data:
+                    port_n = r.get("port", "?")
+                    for f in r.get("findings", []):
+                        sev = f.get("severity", "info")
+                        lines.append(f"  [{sev.upper()}] port {port_n}: {f.get('title')} — {f.get('detail','')}")
+                if lines:
+                    http_security_summary = "\nVýsledky HTTP/HTTPS bezpečnostného skenu (OVERENÉ, dôveruj im):\n" + "\n".join(lines) + "\n"
+        except Exception:
+            pass
+
         prompt = (
             f"Port sken: {scan['host']} ({scan['ip']})\n"
-            f"Otvorené porty:\n{port_list}\n\n"
+            f"Otvorené porty:\n{port_list}\n"
+            f"{http_security_summary}\n"
             "Kontext pre správnu interpretáciu (eliminuj false positives):\n"
-            "- Port 80 presmerúvajúci na 443 BEZ HSTS hlavičky je SPRÁVNE správanie — HSTS patrí len na HTTPS\n"
-            "- Port 443 vracajúci HTTP 400 Bad Request je NORMÁLNE — nginx odmietne plain HTTP na HTTPS porte\n"
-            "- SSH banner 'invalid format' v logoch môže byť spôsobený port skenerom samotným — nie je to útok\n"
-            "- Port 5000 (Flask/Werkzeug) je problém LEN ak je verejne dostupný; ak je za nginx reverse proxy, nie je to riziko\n"
-            "- Viditeľná verzia nginx/OpenSSH je nízke riziko, nie kritické\n\n"
+            "- Port 80 presmerúvajúci na 443 BEZ HSTS je SPRÁVNE — HSTS patrí len na HTTPS\n"
+            "- Port 443 vracajúci HTTP 400/302 je NORMÁLNE — nginx/app správanie\n"
+            "- SSH banner 'invalid format' môže byť artefakt skenera, nie útok\n"
+            "- Port 5000 za nginx reverse proxy nie je riziko\n"
+            "- Ak HTTP sken ukazuje [OK] pre nejakú hlavičku, NEodporúčaj ju pridať\n\n"
             "Stručná bezpečnostná analýza v slovenčine (max 250 slov):\n"
-            "1. **Kritické riziká** – len skutočné, overiteľné hrozby (nie false positives)\n"
-            "2. **Top 3 odporúčania** – konkrétne kroky\n"
+            "1. **Kritické riziká** – len skutočné, overiteľné hrozby\n"
+            "2. **Top 3 odporúčania** – konkrétne kroky, vychádzaj z [HIGH]/[MEDIUM] nálezov\n"
             "3. **Celkové riziko**: Nízke / Stredné / Vysoké / Kritické"
         )
 
