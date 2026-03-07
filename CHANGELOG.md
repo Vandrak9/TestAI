@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0] – 2026-03-07
+### Pridané
+- **HTTPS** – nginx reverse proxy + Let's Encrypt TLS certifikát (auto-obnova)
+- HTTP → HTTPS redirect (301)
+- Bezpečnostné hlavičky: `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`
+- **Rate limiting** (`flask-limiter`) na kľúčových endpointoch:
+  - `/login` POST: 10/min, 30/hod — ochrana proti brute force
+  - `/scan`, `/scan-udp`: 20/min, 200/hod
+  - `/scan-range`: 10/min, 100/hod
+  - `/api/rekon`: 30/min
+
 ## [0.3.1] – 2026-03-07
 ### Opravené
 - Tab "Rekon" premenovaný na **"DNS & Ping"** – zrozumiteľnejší názov
