@@ -6,6 +6,7 @@ Spustenie: python app.py
 
 import ipaddress
 import json
+import re
 import socket
 import ssl
 import hashlib
@@ -17,6 +18,8 @@ import subprocess
 import threading
 import time
 import urllib.request
+import dns.resolver
+import dns.reversename
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from functools import wraps
@@ -1245,6 +1248,100 @@ def run_schedule_now(sid):
             (now_str, next_run, status, sid),
         )
     return jsonify({"ok": True, "scan_id": scan_id})
+
+
+# ── Rekon: ping, DNS, SSL ──────────────────────────────────────────────────────
+
+def ping_host(host: str) -> dict:
+    try:
+        r = subprocess.run(
+            ["ping", "-c", "4", "-W", "2", host],
+            capture_output=True, text=True, timeout=20,
+        )
+        out = r.stdout
+        rtt = re.search(r"rtt min/avg/max/mdev = ([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)", out)
+        loss = re.search(r"(\d+)% packet loss", out)
+        ttl = re.search(r"ttl=(\d+)", out, re.IGNORECASE)
+        return {
+            "alive": r.returncode == 0,
+            "min": float(rtt.group(1)) if rtt else None,
+            "avg": float(rtt.group(2)) if rtt else None,
+            "max": float(rtt.group(3)) if rtt else None,
+            "loss": int(loss.group(1)) if loss else 100,
+            "ttl": int(ttl.group(1)) if ttl else None,
+        }
+    except Exception as e:
+        return {"alive": False, "error": str(e)}
+
+
+def dns_lookup(target: str) -> dict:
+    records = {}
+    for rtype in ["A", "AAAA", "CNAME", "MX", "NS", "TXT", "SOA"]:
+        try:
+            answers = dns.resolver.resolve(target, rtype, lifetime=5)
+            records[rtype] = [str(r) for r in answers]
+        except Exception:
+            pass
+    # PTR – reverzný DNS (len pre IP)
+    try:
+        ipaddress.ip_address(target)
+        rev = dns.reversename.from_address(target)
+        answers = dns.resolver.resolve(rev, "PTR", lifetime=5)
+        records["PTR"] = [str(r) for r in answers]
+    except Exception:
+        pass
+    return records
+
+
+def ssl_cert_info(host: str, port: int = 443) -> dict:
+    try:
+        ctx = ssl.create_default_context()
+        with socket.create_connection((host, port), timeout=8) as sock:
+            with ctx.wrap_socket(sock, server_hostname=host) as ssock:
+                cert = ssock.getpeercert()
+                cipher = ssock.cipher()
+                version = ssock.version()
+        subject = dict(x[0] for x in cert.get("subject", []))
+        issuer = dict(x[0] for x in cert.get("issuer", []))
+        sans = [v for t, v in cert.get("subjectAltName", []) if t == "DNS"]
+        return {
+            "cn": subject.get("commonName"),
+            "issuer_org": issuer.get("organizationName") or issuer.get("commonName"),
+            "issuer_cn": issuer.get("commonName"),
+            "not_before": cert.get("notBefore"),
+            "not_after": cert.get("notAfter"),
+            "sans": sans[:12],
+            "cipher": cipher[0] if cipher else None,
+            "protocol": version,
+        }
+    except ssl.SSLCertVerificationError as e:
+        return {"error": f"Neplatný certifikát: {e.reason}"}
+    except ConnectionRefusedError:
+        return {"error": "Port 443 je zatvorený"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.route("/api/rekon/<path:target>")
+@login_required
+def rekon_api(target):
+    """Ping + DNS záznamy + SSL certifikát pre doménu alebo IP."""
+    target = target.strip()
+    try:
+        ip = socket.gethostbyname(target)
+    except socket.gaierror:
+        ip = target
+
+    # Parallelné volania
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        f_ping = ex.submit(ping_host, ip)
+        f_dns  = ex.submit(dns_lookup, target)
+        f_ssl  = ex.submit(ssl_cert_info, target)
+        ping_res = f_ping.result()
+        dns_res  = f_dns.result()
+        ssl_res  = f_ssl.result()
+
+    return jsonify({"ip": ip, "ping": ping_res, "dns": dns_res, "ssl": ssl_res})
 
 
 @app.route("/api/geowhois/<path:target>")

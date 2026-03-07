@@ -252,6 +252,33 @@
     .badge-udp-open{background:rgba(245,158,11,.1);color:var(--yellow);font-size:.7rem;font-weight:700;padding:.12rem .45rem;border-radius:99px;border:1px solid rgba(245,158,11,.22)}
     .badge-udp-filtered{background:rgba(100,116,139,.08);color:var(--muted2);font-size:.7rem;font-weight:700;padding:.12rem .45rem;border-radius:99px;border:1px solid var(--border2)}
     .hb-geo{background:rgba(99,102,241,.1);color:#a5b4fc;border:1px solid rgba(99,102,241,.25);font-size:.7rem;font-weight:600;padding:.12rem .48rem;border-radius:99px;white-space:nowrap}
+
+    /* REKON TAB */
+    .rekon-grid{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem}
+    @media(max-width:600px){.rekon-grid{grid-template-columns:1fr}}
+    .ping-stat{display:flex;flex-direction:column;align-items:center;background:var(--surface);border-radius:var(--rsm);padding:.6rem .5rem}
+    .ping-stat .val{font-size:1.3rem;font-weight:700;color:var(--accent)}
+    .ping-stat .lbl{font-size:.68rem;color:var(--muted2);margin-top:.15rem}
+    .ping-alive{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:600;margin-bottom:.75rem}
+    .dot-alive{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
+    .dot-dead{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red)}
+    .ping-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem}
+    .dns-type{display:inline-block;font-size:.68rem;font-weight:700;padding:.1rem .42rem;border-radius:4px;background:rgba(59,130,246,.12);color:var(--accent);border:1px solid rgba(59,130,246,.2);margin-right:.35rem;font-family:monospace;width:52px;text-align:center}
+    .dns-val{font-family:monospace;font-size:.8rem;color:var(--text);word-break:break-all}
+    .dns-row{padding:.3rem 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:.3rem}
+    .dns-row:last-child{border-bottom:none}
+    .ssl-row{display:flex;gap:.5rem;font-size:.82rem;padding:.22rem 0;border-bottom:1px solid rgba(255,255,255,.04)}
+    .ssl-row:last-child{border-bottom:none}
+    .ssl-k{color:var(--muted2);width:100px;flex-shrink:0}
+    .ssl-v{color:var(--text);word-break:break-all}
+    .ssl-valid{color:var(--green);font-weight:600}
+    .ssl-expired{color:var(--red);font-weight:600}
+    .rekon-input-row{display:flex;gap:.5rem;margin-bottom:1rem}
+    .rekon-input-row input{flex:1}
+    .btn-rekon{background:var(--accent);border:none;border-radius:var(--rsm);color:#fff;font-size:.88rem;font-weight:600;padding:.52rem 1.1rem;cursor:pointer;transition:background .15s;white-space:nowrap}
+    .btn-rekon:hover{background:var(--accent2)}
+    .btn-rekon:disabled{opacity:.4;cursor:not-allowed}
+    .rekon-empty{color:var(--muted2);font-size:.83rem;text-align:center;padding:1.5rem 0}
   </style>
 </head>
 <body>
@@ -320,6 +347,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Plán
       <span class="tbadge" id="sbadge" style="display:none">0</span>
+    </button>
+    <button class="tab" id="tbRekon" onclick="switchTab('rekon')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      Rekon
     </button>
   </div>
 
@@ -479,6 +510,42 @@
     <div class="sched-list" id="schedList"></div>
   </div>
 
+  <!-- ═══ REKON ═══ -->
+  <div id="tabRekon" style="display:none">
+    <div class="card">
+      <div class="card-title">Prieskum hostiteľa</div>
+      <div class="rekon-input-row">
+        <input id="rekonHost" type="text" placeholder="example.com alebo 1.2.3.4" autocomplete="off"/>
+        <button class="btn-rekon" id="btnRekon" onclick="runRekon()">Spustiť</button>
+      </div>
+      <div id="rekonStatus" style="font-size:.8rem;color:var(--muted2);min-height:1.2em"></div>
+    </div>
+
+    <div id="rekonResults" style="display:none">
+
+      <!-- Ping -->
+      <div class="card">
+        <div class="card-title">ICMP Ping</div>
+        <div id="pingOut"></div>
+      </div>
+
+      <!-- DNS -->
+      <div class="rekon-grid">
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">DNS záznamy</div>
+          <div id="dnsOut"><div class="rekon-empty">—</div></div>
+        </div>
+
+        <!-- SSL -->
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">SSL / TLS certifikát</div>
+          <div id="sslOut"><div class="rekon-empty">—</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div><!-- /wrap -->
 
 <script>
@@ -533,20 +600,23 @@ function scanMyIp(){
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────
-const TABS=['scanner','history','sched'];
+const TABS=['scanner','history','sched','rekon'];
 function switchTab(name){
   document.getElementById('tabScanner').style.display=name==='scanner'?'block':'none';
   document.getElementById('tabHistory').style.display=name==='history'?'block':'none';
   document.getElementById('tabSched').style.display=name==='sched'?'block':'none';
-  TABS.forEach(t=>{
-    const id='tb'+t.charAt(0).toUpperCase()+t.slice(1);
-    const el=document.getElementById(id)||document.getElementById('tbSched');
-    if(t==='scanner') document.getElementById('tbScanner').classList.toggle('active',name==='scanner');
-    if(t==='history') document.getElementById('tbHistory').classList.toggle('active',name==='history');
-    if(t==='sched')   document.getElementById('tbSched').classList.toggle('active',name==='sched');
-  });
+  document.getElementById('tabRekon').style.display=name==='rekon'?'block':'none';
+  document.getElementById('tbScanner').classList.toggle('active',name==='scanner');
+  document.getElementById('tbHistory').classList.toggle('active',name==='history');
+  document.getElementById('tbSched').classList.toggle('active',name==='sched');
+  document.getElementById('tbRekon').classList.toggle('active',name==='rekon');
   if(name==='history') loadHistory();
   if(name==='sched')   loadSchedules();
+  if(name==='rekon'){
+    // Predvyplň host z skenera
+    const h=document.getElementById('host').value.trim();
+    if(h && !document.getElementById('rekonHost').value) document.getElementById('rekonHost').value=h;
+  }
 }
 
 document.getElementById('ports').addEventListener('change',function(){
@@ -1591,6 +1661,102 @@ function renderSchedules(list){
 
 // ── Init ──────────────────────────────────────────────────────────────
 refreshBadge();
+
+// ── Rekon ─────────────────────────────────────────────────────────────
+function runRekon(){
+  const host=document.getElementById('rekonHost').value.trim();
+  if(!host) return;
+  const btn=document.getElementById('btnRekon');
+  const status=document.getElementById('rekonStatus');
+  btn.disabled=true;
+  status.textContent='Prebieha prieskum…';
+  document.getElementById('rekonResults').style.display='none';
+
+  fetch('/api/rekon/'+encodeURIComponent(host))
+    .then(r=>r.json())
+    .then(d=>{
+      renderPing(d.ping, d.ip);
+      renderDns(d.dns);
+      renderSsl(d.ssl);
+      document.getElementById('rekonResults').style.display='';
+      status.textContent='';
+      btn.disabled=false;
+    })
+    .catch(e=>{
+      status.textContent='Chyba: '+e.message;
+      btn.disabled=false;
+    });
+}
+
+document.getElementById('rekonHost').addEventListener('keydown',e=>{
+  if(e.key==='Enter') runRekon();
+});
+
+function renderPing(p, ip){
+  const out=document.getElementById('pingOut');
+  if(!p){out.innerHTML='<div class="rekon-empty">Žiadne dáta</div>';return;}
+  let html='';
+  html+=`<div class="ping-alive">
+    <span class="${p.alive?'dot-alive':'dot-dead'}"></span>
+    ${p.alive?'Hostiteľ odpovedá':'Hostiteľ neodpovedá'}
+    <span style="color:var(--muted2);font-weight:400;font-size:.78rem">${escHtml(ip||'')}</span>
+  </div>`;
+  if(p.alive){
+    html+=`<div class="ping-stats-row">
+      <div class="ping-stat"><div class="val">${p.avg!=null?p.avg.toFixed(1)+'<span style="font-size:.75rem">ms</span>':'—'}</div><div class="lbl">Priem. latencia</div></div>
+      <div class="ping-stat"><div class="val">${p.min!=null?p.min.toFixed(1)+'<span style="font-size:.75rem">ms</span>':'—'}</div><div class="lbl">Min</div></div>
+      <div class="ping-stat"><div class="val">${p.max!=null?p.max.toFixed(1)+'<span style="font-size:.75rem">ms</span>':'—'}</div><div class="lbl">Max</div></div>
+      <div class="ping-stat"><div class="val" style="${(p.loss||0)>0?'color:var(--red)':''}">${p.loss??'—'}<span style="font-size:.75rem">%</span></div><div class="lbl">Strata paketov</div></div>
+    </div>`;
+    if(p.ttl) html+=`<div style="font-size:.75rem;color:var(--muted2);margin-top:.55rem">TTL: <strong style="color:var(--text)">${p.ttl}</strong></div>`;
+  } else if(p.error){
+    html+=`<div style="font-size:.8rem;color:var(--muted2)">${escHtml(p.error)}</div>`;
+  }
+  out.innerHTML=html;
+}
+
+function renderDns(dns){
+  const out=document.getElementById('dnsOut');
+  if(!dns||!Object.keys(dns).length){out.innerHTML='<div class="rekon-empty">Žiadne záznamy</div>';return;}
+  const order=['A','AAAA','CNAME','MX','NS','TXT','SOA','PTR'];
+  let html='';
+  const types=[...order.filter(t=>dns[t]),...Object.keys(dns).filter(t=>!order.includes(t))];
+  types.forEach(type=>{
+    const vals=dns[type];
+    vals.forEach((v,i)=>{
+      html+=`<div class="dns-row">
+        ${i===0?`<span class="dns-type">${escHtml(type)}</span>`:'<span style="width:52px;flex-shrink:0;display:inline-block"></span>'}
+        <span class="dns-val">${escHtml(v)}</span>
+      </div>`;
+    });
+  });
+  out.innerHTML=html;
+}
+
+function renderSsl(ssl){
+  const out=document.getElementById('sslOut');
+  if(!ssl){out.innerHTML='<div class="rekon-empty">—</div>';return;}
+  if(ssl.error){out.innerHTML=`<div style="font-size:.82rem;color:var(--muted2)">${escHtml(ssl.error)}</div>`;return;}
+  const now=Date.now();
+  const expiry=ssl.not_after?new Date(ssl.not_after):null;
+  const valid=expiry&&expiry>now;
+  const daysLeft=expiry?Math.ceil((expiry-now)/86400000):null;
+  let rows=[
+    ['CN', ssl.cn],
+    ['Vydavateľ', ssl.issuer_org||ssl.issuer_cn],
+    ['Platnosť od', ssl.not_before?ssl.not_before.replace(' GMT',''):null],
+    ['Platnosť do', ssl.not_after?`<span class="${valid?'ssl-valid':'ssl-expired'}">${ssl.not_after.replace(' GMT','')}${daysLeft!=null?' ('+daysLeft+' dní)':''}</span>`:null],
+    ['Protokol', ssl.protocol],
+    ['Šifra', ssl.cipher],
+    ['SAN', ssl.sans&&ssl.sans.length?ssl.sans.join(', '):null],
+  ];
+  let html='';
+  rows.forEach(([k,v])=>{
+    if(!v) return;
+    html+=`<div class="ssl-row"><span class="ssl-k">${escHtml(k)}</span><span class="ssl-v">${typeof v==='string'&&v.startsWith('<')?v:escHtml(v)}</span></div>`;
+  });
+  out.innerHTML=html||'<div class="rekon-empty">—</div>';
+}
 </script>
 </body>
 </html>
