@@ -568,34 +568,46 @@ def check_http_security(host: str, port: int) -> dict:
     # ── HTTP headers ─────────────────────────────────────────────────────────
     try:
         scheme = "https" if use_tls else "http"
-        req = urllib.request.Request(
-            f"{scheme}://{host}:{port}/",
-            headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0"},
-            method="GET",
-        )
-        # Custom SSL kontext — žiadna verifikácia certifikátu (skener, nie browser)
         ctx_h = ssl.create_default_context()
         ctx_h.check_hostname = False
         ctx_h.verify_mode = ssl.CERT_NONE
 
-        # Zastavíme sledovanie redirectov — chceme vidieť pôvodné hlavičky
-        # (napr. Location pri 301, nie hlavičky finálnej stránky)
-        class _NoRedirect(urllib.request.HTTPRedirectHandler):
-            def redirect_request(self, *a, **kw):
-                return None
-
-        opener = urllib.request.build_opener(
-            urllib.request.HTTPSHandler(context=ctx_h),
-            _NoRedirect(),
-        )
-        try:
-            with opener.open(req, timeout=5) as r:
+        if not use_tls:
+            # HTTP port: NEsledujeme redirect — čítame Location z 301 odpovede
+            # Posielame Host hlavičku aby server vrátil správny redirect
+            class _NoRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self, *a, **kw):
+                    return None
+            req = urllib.request.Request(
+                f"http://{host}:{port}/",
+                headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0", "Host": host},
+                method="GET",
+            )
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPSHandler(context=ctx_h),
+                _NoRedirect(),
+            )
+            try:
+                with opener.open(req, timeout=5) as r:
+                    for k, v in r.headers.items():
+                        resp_headers[k.lower()] = v
+            except urllib.error.HTTPError as e:
+                for k, v in e.headers.items():
+                    resp_headers[k.lower()] = v
+        else:
+            # HTTPS port: sledujeme redirecty (max 5) — čítame finálne hlavičky
+            # (napr. HSTS je na finálnej stránke, nie na intermediate redirect)
+            req = urllib.request.Request(
+                f"https://{host}:{port}/",
+                headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0", "Host": host},
+                method="GET",
+            )
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPSHandler(context=ctx_h),
+            )
+            with opener.open(req, timeout=8) as r:
                 for k, v in r.headers.items():
                     resp_headers[k.lower()] = v
-        except urllib.error.HTTPError as e:
-            # Redirect odpovede (301/302) sú tu — čítame ich hlavičky
-            for k, v in e.headers.items():
-                resp_headers[k.lower()] = v
 
         # Server header — version disclosure
         srv = resp_headers.get("server", "")
