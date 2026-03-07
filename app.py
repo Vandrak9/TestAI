@@ -573,16 +573,28 @@ def check_http_security(host: str, port: int) -> dict:
             headers={"User-Agent": "Mozilla/5.0 PortScanner/1.0"},
             method="GET",
         )
-        # Vždy použijeme custom SSL kontext aby HTTPS redirecty (napr. 80→443)
-        # fungovali bez chyby IP/cert mismatch pri sledovaní presmerovaní
+        # Custom SSL kontext — žiadna verifikácia certifikátu (skener, nie browser)
         ctx_h = ssl.create_default_context()
         ctx_h.check_hostname = False
         ctx_h.verify_mode = ssl.CERT_NONE
+
+        # Zastavíme sledovanie redirectov — chceme vidieť pôvodné hlavičky
+        # (napr. Location pri 301, nie hlavičky finálnej stránky)
+        class _NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *a, **kw):
+                return None
+
         opener = urllib.request.build_opener(
-            urllib.request.HTTPSHandler(context=ctx_h)
+            urllib.request.HTTPSHandler(context=ctx_h),
+            _NoRedirect(),
         )
-        with opener.open(req, timeout=5) as r:
-            for k, v in r.headers.items():
+        try:
+            with opener.open(req, timeout=5) as r:
+                for k, v in r.headers.items():
+                    resp_headers[k.lower()] = v
+        except urllib.error.HTTPError as e:
+            # Redirect odpovede (301/302) sú tu — čítame ich hlavičky
+            for k, v in e.headers.items():
                 resp_headers[k.lower()] = v
 
         # Server header — version disclosure
