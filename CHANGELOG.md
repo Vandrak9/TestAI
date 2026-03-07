@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.1] – 2026-03-07
+### Opravené
+- HTTPS check: manuálne sledovanie redirectov (max 4 hopy), hlavičky zbierané z každého skoku
+- Zastavenie pri HTTP redirect — bezpečnostné hlavičky na HTTP nemajú zmysel
+- **Poznámka**: `Chýba HSTS` pre google.sk je správny nález — Google používa HSTS preload list (zabudovaný v prehliadačoch), nie HTTP hlavičku
+
 ## [0.5.0] – 2026-03-07
 ### Opravené
 - **HTTPS infinite redirect**: odstránený fixed `Host` header → urllib nastaví správny host pre každý redirect
