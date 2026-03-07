@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.8] – 2026-03-07
+### Opravené
+- Bezpečnostné hlavičky (CSP, X-Frame-Options, HSTS...) sa kontrolujú **len na HTTPS** porte
+- HTTP port (80) kontroluje výlučne prítomnosť redirect → HTTPS
+- Eliminuje false positives pre chýbajúce hlavičky na 301 redirect odpovedi
+
 ## [0.4.7] – 2026-03-07
 ### Opravené
 - **HTTP redirect detekcia**: urllib viac nenasleduje redirecty automaticky
