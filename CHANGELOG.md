@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.2] – 2026-03-07
+### Opravené
+- **SSH banner grab**: port 22 teraz číta banner bez HTTP probe → eliminovaný "invalid format" v sshd logoch
+- **HTTPS banner grab**: porty 443/8443/9443 používajú SSL wrapper
+- **AI false positives**: prompt rozšírený o kontext pre správnu interpretáciu:
+  - Port 80 bez HSTS = správne správanie
+  - Port 443 → HTTP 400 = normálne nginx
+  - SSH "invalid format" = artefakt skenera
+  - Port 5000 za reverse proxy = nie je riziko
+- **fail2ban**: IP `178.143.16.59` pridaná do whitelist
+
 ## [0.4.1] – 2026-03-07 (infraštruktúra)
 ### Bezpečnosť servera
 - **fail2ban** – SSH ochrana: ban po 3 neúspešných pokusoch, trvanie 24 hodín
